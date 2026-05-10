@@ -1,0 +1,589 @@
+// EntityOS — Prisma Schema
+// Auth:     NextAuth v4 + Okta OIDC
+// Database: PostgreSQL (production)
+//
+// Setup:
+//   1. Copy .env.example → .env and fill in DATABASE_URL
+//   2. npx prisma migrate dev --name init
+//   3. npx prisma db seed
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum EntityStatus {
+  active
+  dormant
+  dissolved
+  in_formation
+}
+
+enum ComplianceStatus {
+  pending
+  submitted
+  overdue
+  completed
+  not_applicable
+}
+
+enum LicenseStatus {
+  active
+  expired
+  suspended
+  pending_renewal
+}
+
+enum AlertSeverity {
+  critical
+  warning
+  info
+}
+
+enum AlertStatus {
+  unread
+  read
+  dismissed
+}
+
+enum MeetingStatus {
+  draft
+  scheduled
+  completed
+  cancelled
+}
+
+enum MeetingLocationType {
+  physical
+  virtual
+  hybrid
+}
+
+enum AttendeeStatus {
+  invited
+  accepted
+  declined
+  tentative
+}
+
+enum ResolutionStatus {
+  proposed
+  passed
+  defeated
+  deferred
+}
+
+enum UserRole {
+  super_admin
+  admin
+  legal
+  finance
+  viewer
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+  LOGIN
+  INVITE
+  DEACTIVATE
+  REACTIVATE
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NEXTAUTH TABLES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+
+  role        UserRole  @default(viewer)
+  department  String?
+  title       String?
+  isActive    Boolean   @default(true)
+  oktaId      String?   @unique
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  accounts  Account[]
+  sessions  Session[]
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENTITY
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Entity {
+  id                 String       @id @default(cuid())
+  name               String
+  country            String
+  legalStructure     String
+  registrationNumber String
+  registeredAddress  String
+  incorporationDate  DateTime
+  financialYearEnd   String       // e.g. "31 December"
+  governingLaw       String
+  auditor            String?
+  regulator          String?
+  regulatorUrl       String?      // Direct link to official regulator register page
+  formerName         String?      // Previous legal name before rebranding
+  purpose            String?      // holding | licensing | employing | operating
+  isLegacyEntity     Boolean      @default(false) @map("isIxarisEntity")
+  status             EntityStatus @default(active)
+  healthScore        Int?         // 0-100, computed by alert engine
+  notes              String?
+
+  // Self-referential parent/subsidiary tree
+  parentEntityId String?
+  parent         Entity?  @relation("EntityHierarchy", fields: [parentEntityId], references: [id])
+  subsidiaries   Entity[] @relation("EntityHierarchy")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  directors             Director[]
+  boardMeetings         BoardMeeting[]
+  complianceObligations ComplianceObligation[]
+  licenses              License[]
+  regulatoryCapital     RegulatoryCapital?
+  bankAccounts          BankAccount[]
+  alerts                Alert[]
+  documents             Document[]
+  auditLogs             AuditLog[]
+
+  @@index([country])
+  @@index([status])
+  @@index([parentEntityId])
+  @@map("entities")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DIRECTOR / OFFICER
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Director {
+  id              String    @id @default(cuid())
+  entityId        String
+  name            String
+  email           String?
+  role            String
+  appointmentDate DateTime?
+  termExpiry      DateTime?
+  nationality     String?
+  isActive        Boolean   @default(true)
+  notes           String?
+
+  // Enhanced fields
+  responsibilities String?   // AML Officer, Chair, etc. (comma-separated)
+  remuneration     String?   // Restricted field — finance/admin only
+  guideUrl         String?   // Director guide PDF for this jurisdiction
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  entity           Entity            @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  meetingAttendees MeetingAttendee[]
+
+  @@index([entityId])
+  @@index([email])
+  @@map("directors")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BOARD MEETING
+// ─────────────────────────────────────────────────────────────────────────────
+
+model BoardMeeting {
+  id             String              @id @default(cuid())
+  entityId       String
+  meetingType    String
+  meetingDate    DateTime
+  meetingTime    String
+  timezone       String              @default("UTC")
+  locationType   MeetingLocationType @default(physical)
+  location       String?
+  virtualLink    String?
+  agenda         String
+  chair          String
+  quorumRequired Int                 @default(3)
+  status         MeetingStatus       @default(scheduled)
+  minutes        String?
+  notes          String?
+  recurrence     String?
+
+  // Completion audit trail
+  heldAt           DateTime?
+  confirmedBy      String?
+  directorsPresent Int?
+  minutesUrl       String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entity      Entity              @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  attendees   MeetingAttendee[]
+  documents   MeetingDocument[]
+  resolutions MeetingResolution[]
+
+  @@index([entityId])
+  @@index([meetingDate])
+  @@index([status])
+  @@map("board_meetings")
+}
+
+model MeetingAttendee {
+  id          String         @id @default(cuid())
+  meetingId   String
+  directorId  String
+  status      AttendeeStatus @default(invited)
+  invitedAt   DateTime       @default(now())
+  respondedAt DateTime?
+
+  meeting  BoardMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  director Director     @relation(fields: [directorId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, directorId])
+  @@map("meeting_attendees")
+}
+
+model MeetingDocument {
+  id         String   @id @default(cuid())
+  meetingId  String
+  name       String
+  fileType   String
+  fileSize   Int
+  uploadedBy String
+  uploadedAt DateTime @default(now())
+  category   String   // agenda | pack | minutes | resolution | other
+  storageUrl String?
+
+  meeting BoardMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId])
+  @@map("meeting_documents")
+}
+
+model MeetingResolution {
+  id           String           @id @default(cuid())
+  meetingId    String
+  title        String
+  description  String
+  proposedBy   String
+  votesFor     Int              @default(0)
+  votesAgainst Int              @default(0)
+  votesAbstain Int              @default(0)
+  status       ResolutionStatus @default(proposed)
+  notes        String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  meeting BoardMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId])
+  @@map("meeting_resolutions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPLIANCE OBLIGATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ComplianceObligation {
+  id              String           @id @default(cuid())
+  entityId        String
+  requirementType String
+  regulator       String
+  description     String
+  dueDate         DateTime
+  submittedDate   DateTime?
+  status          ComplianceStatus @default(pending)
+  owner           String
+  notes           String?
+  recurrence      String           @default("annual")
+
+  // Filing audit trail
+  filingReference String?
+  confirmedBy     String?
+  completedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entity Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  @@index([entityId])
+  @@index([dueDate])
+  @@index([status])
+  @@map("compliance_obligations")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LICENSE
+// ─────────────────────────────────────────────────────────────────────────────
+
+model License {
+  id              String        @id @default(cuid())
+  entityId        String
+  licenseType     String
+  regulator       String
+  licenseNumber   String
+  issueDate       DateTime?
+  expiryDate      DateTime?
+  renewalRequired Boolean       @default(true)
+  renewalLeadDays Int           @default(90)
+  status          LicenseStatus @default(active)
+  documentUrl     String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  entity Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  @@index([entityId])
+  @@index([expiryDate])
+  @@index([status])
+  @@map("licenses")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REGULATORY CAPITAL
+// ─────────────────────────────────────────────────────────────────────────────
+
+model RegulatoryCapital {
+  id                 String   @id @default(cuid())
+  entityId           String   @unique
+  capitalRequirement String
+  currency           String   @default("USD")
+  minimumRequired    Float
+  currentBalance     Float
+  bufferPercentage   Float    @default(20)
+  notes              String?
+  lastUpdated        DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  entity Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  @@map("regulatory_capital")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BANK ACCOUNT
+// ─────────────────────────────────────────────────────────────────────────────
+
+model BankAccount {
+  id                 String   @id @default(cuid())
+  entityId           String
+  bankName           String
+  accountNumber      String
+  currency           String
+  balance            Float    @default(0)
+  minRequiredBalance Float    @default(0)
+  notes              String?
+  lastUpdated        DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  entity Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  @@index([entityId])
+  @@map("bank_accounts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ALERT
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Alert {
+  id        String        @id @default(cuid())
+  entityId  String
+  title     String
+  message   String
+  severity  AlertSeverity @default(info)
+  status    AlertStatus   @default(unread)
+  category  String        // compliance | license | capital | meeting | general
+  relatedId String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  entity Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  @@index([entityId])
+  @@index([status])
+  @@index([severity])
+  @@map("alerts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DOCUMENT VAULT
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Document {
+  id         String   @id @default(cuid())
+  entityId   String
+  name       String
+  category   String   // constitutional | compliance | license | financial | meeting | other
+  fileType   String
+  fileSize   Int
+  uploadedBy String
+  storageUrl String?
+  version    Int      @default(1)
+  tags       String[]
+  notes      String?
+  uploadedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  entity Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  @@index([entityId])
+  @@index([category])
+  @@map("documents")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUDIT LOG  (append-only — never UPDATE or DELETE rows here)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  entityId  String?
+  userId    String?
+  action    AuditAction
+  tableName String
+  recordId  String
+  oldValues Json?
+  newValues Json?
+  ipAddress String?
+  userAgent String?
+  notes     String?
+  createdAt DateTime    @default(now())
+
+  entity Entity? @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityId])
+  @@index([userId])
+  @@index([tableName, recordId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUBMISSIONS  (bug reports + feature requests → PRD → approval → implementation)
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum SubmissionType {
+  bug
+  feature
+}
+
+enum SubmissionStatus {
+  open
+  in_review
+  approved
+  implementing
+  done
+  rejected
+}
+
+model Submission {
+  id            String           @id @default(cuid())
+  type          SubmissionType
+  title         String
+  description   String
+  pageUrl       String?          // Auto-captured page where bug was found
+  component     String?          // Affected component
+  severity      String?          // critical | major | minor (bugs only)
+  area          String?          // Entity | Directors | Compliance etc. (features only)
+  priority      String?          // high | medium | low (features only)
+  submittedBy   String           // User email
+  status        SubmissionStatus @default(open)
+
+  // PRD generated by Claude
+  prdContent    String?          // Full PRD markdown
+  prdGeneratedAt DateTime?
+
+  // Slack thread
+  slackMessageTs String?         // Message timestamp for threading replies
+
+  // Approval
+  approvedBy    String?
+  approvedAt    DateTime?
+  rejectedBy    String?
+  rejectedAt    DateTime?
+  rejectionNote String?
+
+  // Implementation
+  implementedAt DateTime?
+  implementationNote String?
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([submittedBy])
+  @@map("submissions")
+}

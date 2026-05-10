@@ -1,0 +1,4 @@
+entityId,requirementType,regulator,description,dueDate,status,owner,notes,recurrence
+ent-001,Annual Return,ACRA,Annual return filing for the financial year,2026-12-31,pending,Legal Team,,annual
+ent-001,Corporate Tax Filing,IRAS,Corporate income tax return,2027-06-30,pending,Finance Team,,annual
+ent-001,Audited Financials,ACRA,Audited financial statements submission,2027-06-30,pending,Finance Team,,annual

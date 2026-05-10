@@ -1,0 +1,3 @@
+entityId,bankName,accountNumber,currency,balance,minRequiredBalance,notes
+ent-001,DBS Bank,0001234567,SGD,5000000,1000000,Operating account
+ent-001,HSBC,HK12345678,USD,2500000,500000,

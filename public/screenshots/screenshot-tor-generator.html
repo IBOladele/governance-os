@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280">
+<title>GovernanceOS – Terms of Reference Generator</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; display: flex; width: 1280px; height: 800px; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  .sidebar { width: 220px; background: #4338ca; display: flex; flex-direction: column; flex-shrink: 0; }
+  .sidebar-logo { padding: 20px 16px 16px; border-bottom: 1px solid rgba(255,255,255,.12); }
+  .sidebar-logo .brand { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -.2px; }
+  .sidebar-logo .tagline { font-size: 10px; color: rgba(255,255,255,.55); margin-top: 2px; }
+  .nav { padding: 12px 0; flex: 1; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; font-size: 13px; color: rgba(255,255,255,.7); cursor: pointer; }
+  .nav-item:hover { background: rgba(255,255,255,.08); }
+  .nav-item.active { background: rgba(255,255,255,.15); color: #fff; font-weight: 600; }
+  .nav-item .icon { width: 16px; text-align: center; opacity: .8; }
+  .nav-badge { margin-left: auto; background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; border-radius: 9px; padding: 1px 6px; }
+  .sidebar-user { padding: 12px 16px; border-top: 1px solid rgba(255,255,255,.12); display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .sidebar-user-info .name { font-size: 12px; color: #fff; font-weight: 600; }
+  .sidebar-user-info .role { font-size: 10px; color: rgba(255,255,255,.5); }
+
+  /* ── Main ── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #6b7280; }
+  .breadcrumb .current { color: #111827; font-weight: 600; }
+  .breadcrumb .sep { color: #d1d5db; }
+  .topbar-actions { display: flex; align-items: center; gap: 8px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 7px; font-size: 12.5px; font-weight: 600; cursor: pointer; border: none; }
+  .btn-primary { background: #4f46e5; color: #fff; }
+  .btn-secondary { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+  .btn-success { background: #059669; color: #fff; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  /* ── Content layout ── */
+  .content { flex: 1; overflow-y: auto; display: flex; gap: 0; }
+
+  /* ── Left form panel ── */
+  .form-panel { flex: 1; padding: 20px 24px; overflow-y: auto; }
+  .panel-title { font-size: 16px; font-weight: 800; color: #111827; margin-bottom: 4px; }
+  .panel-subtitle { font-size: 12px; color: #6b7280; margin-bottom: 18px; }
+
+  /* Stage tabs */
+  .stage-tabs { display: flex; gap: 0; margin-bottom: 20px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+  .stage-tab { flex: 1; padding: 10px 12px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; background: #f9fafb; color: #6b7280; border-right: 1px solid #e5e7eb; }
+  .stage-tab:last-child { border-right: none; }
+  .stage-tab.active { background: #4f46e5; color: #fff; }
+  .stage-tab .stage-num { display: block; font-size: 10px; font-weight: 500; opacity: .7; margin-bottom: 1px; }
+
+  /* Form sections */
+  .form-section { background: #fff; border: 1px solid #e5e7eb; border-radius: 9px; padding: 16px; margin-bottom: 14px; }
+  .form-section-title { font-size: 12px; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; display: flex; align-items: center; gap: 7px; }
+  .form-section-title .icon { font-size: 14px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .form-field { display: flex; flex-direction: column; gap: 4px; }
+  .form-field label { font-size: 11px; font-weight: 600; color: #374151; }
+  .form-field select, .form-field input { width: 100%; padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 12.5px; color: #111827; background: #fff; outline: none; }
+  .form-field select:focus, .form-field input:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,.15); }
+  .form-field .hint { font-size: 10px; color: #9ca3af; margin-top: 2px; }
+
+  /* Reserved matters */
+  .reserved-matters { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .matter-row { display: flex; align-items: center; gap: 7px; padding: 6px 8px; border-radius: 6px; background: #f9fafb; border: 1px solid #e5e7eb; }
+  .matter-row input[type=checkbox] { width: 13px; height: 13px; accent-color: #4f46e5; }
+  .matter-row label { font-size: 11.5px; color: #374151; cursor: pointer; }
+  .matter-row.checked { background: #eef2ff; border-color: #c7d2fe; }
+  .matter-row.checked label { color: #3730a3; font-weight: 500; }
+
+  /* Stage 2 upload zone */
+  .upload-zone { border: 2px dashed #c7d2fe; border-radius: 8px; padding: 16px; text-align: center; background: #eef2ff; margin-bottom: 10px; }
+  .upload-zone .upload-icon { font-size: 28px; margin-bottom: 6px; }
+  .upload-zone .upload-title { font-size: 13px; font-weight: 700; color: #3730a3; margin-bottom: 3px; }
+  .upload-zone .upload-desc { font-size: 11.5px; color: #6366f1; }
+  .upload-types { display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
+  .upload-type-pill { background: #fff; border: 1px solid #c7d2fe; border-radius: 20px; padding: 3px 10px; font-size: 11px; color: #4338ca; font-weight: 600; }
+  .ai-badge { display: inline-flex; align-items: center; gap: 5px; background: linear-gradient(135deg, #7c3aed, #4f46e5); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; margin-left: 8px; }
+  .uploaded-file { display: flex; align-items: center; gap: 8px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 8px 10px; margin-top: 6px; }
+  .uploaded-file .file-icon { font-size: 18px; }
+  .uploaded-file .file-name { font-size: 12px; font-weight: 600; color: #166534; }
+  .uploaded-file .file-size { font-size: 11px; color: #6b7280; }
+  .uploaded-file .remove { margin-left: auto; font-size: 11px; color: #dc2626; cursor: pointer; font-weight: 600; }
+
+  /* Action buttons bar */
+  .action-bar { background: #fff; border-top: 1px solid #e5e7eb; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .action-bar-left { display: flex; align-items: center; gap: 10px; }
+  .progress-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .progress-dot.done { background: #10b981; }
+  .progress-dot.active { background: #4f46e5; }
+  .progress-dot.pending { background: #e5e7eb; }
+  .progress-label { font-size: 12px; color: #6b7280; }
+
+  /* ── Right preview panel ── */
+  .preview-panel { width: 320px; background: #fff; border-left: 1px solid #e5e7eb; display: flex; flex-direction: column; flex-shrink: 0; }
+  .preview-header { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; }
+  .preview-header-title { font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 2px; }
+  .preview-header-sub { font-size: 11px; color: #6b7280; }
+  .preview-body { flex: 1; overflow-y: auto; padding: 14px 16px; }
+
+  /* Document preview mockup */
+  .doc-preview { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; font-size: 11px; color: #374151; line-height: 1.6; }
+  .doc-section { margin-bottom: 12px; }
+  .doc-heading { font-size: 11px; font-weight: 800; color: #1e1b4b; text-transform: uppercase; letter-spacing: .4px; border-bottom: 1.5px solid #4f46e5; padding-bottom: 3px; margin-bottom: 6px; }
+  .doc-line { margin-bottom: 3px; }
+  .doc-line .key { font-weight: 600; color: #111827; }
+  .doc-subsection { margin-left: 8px; }
+  .doc-clause { background: #f8f9ff; border-left: 3px solid #6366f1; padding: 6px 8px; border-radius: 0 4px 4px 0; margin-bottom: 5px; font-size: 10.5px; }
+
+  /* Entity info card */
+  .entity-card { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 7px; padding: 10px 12px; margin-bottom: 12px; }
+  .entity-card-name { font-size: 13px; font-weight: 800; color: #0c4a6e; margin-bottom: 4px; }
+  .entity-card-meta { display: flex; flex-direction: column; gap: 3px; }
+  .entity-card-row { display: flex; justify-content: space-between; font-size: 11px; }
+  .entity-card-row .lbl { color: #6b7280; }
+  .entity-card-row .val { font-weight: 600; color: #374151; }
+
+  /* Jurisdiction badge */
+  .jur-badge { display: inline-flex; align-items: center; gap: 5px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 20px; padding: 3px 9px; font-size: 11px; font-weight: 600; color: #92400e; margin-bottom: 10px; }
+
+  .section-divider { height: 1px; background: #e5e7eb; margin: 12px 0; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">⚖ GovernanceOS</div>
+    <div class="tagline">Corporate Entity Platform</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-item"><span class="icon">▦</span> Dashboard</div>
+    <div class="nav-item active"><span class="icon">🏢</span> Entity Registry</div>
+    <div class="nav-item"><span class="icon">👤</span> Directors</div>
+    <div class="nav-item"><span class="icon">📅</span> Board Meetings</div>
+    <div class="nav-item"><span class="icon">✅</span> Compliance <span class="nav-badge">5</span></div>
+    <div class="nav-item"><span class="icon">📄</span> Licenses</div>
+    <div class="nav-item"><span class="icon">💰</span> Capital</div>
+    <div class="nav-item"><span class="icon">🔔</span> Alerts <span class="nav-badge">3</span></div>
+    <div class="nav-item"><span class="icon">📁</span> Documents</div>
+    <div class="nav-item"><span class="icon">📆</span> Calendar</div>
+    <div class="nav-item"><span class="icon">🌐</span> Org Chart</div>
+  </nav>
+  <div class="sidebar-user">
+    <div class="avatar">AC</div>
+    <div class="sidebar-user-info">
+      <div class="name">Alex Chen</div>
+      <div class="role">Super Admin</div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="breadcrumb">
+      <span>Entity Registry</span>
+      <span class="sep">›</span>
+      <span>Acme Payments Ltd (UK)</span>
+      <span class="sep">›</span>
+      <span class="current">📜 Terms of Reference Generator</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-secondary btn-sm">← Back to Entity</button>
+    </div>
+  </div>
+
+  <!-- Content row: form + preview -->
+  <div class="content">
+
+    <!-- Form Panel -->
+    <div class="form-panel">
+      <div class="panel-title">Board Terms of Reference Generator</div>
+      <div class="panel-subtitle">Generate a jurisdiction-aware Word (.docx) document from statutory templates. Stage 2 uses AI to extract governance clauses from your uploaded documents.</div>
+
+      <!-- Stage Tabs -->
+      <div class="stage-tabs">
+        <div class="stage-tab active">
+          <span class="stage-num">Stage 1</span>
+          Template Generation
+        </div>
+        <div class="stage-tab">
+          <span class="stage-num">Stage 2</span>
+          AI Analysis <span class="ai-badge">✦ AI</span>
+        </div>
+      </div>
+
+      <!-- Board Composition -->
+      <div class="form-section">
+        <div class="form-section-title"><span class="icon">👥</span> Board Composition</div>
+        <div class="form-grid">
+          <div class="form-field">
+            <label>Number of Directors</label>
+            <input type="number" value="5">
+          </div>
+          <div class="form-field">
+            <label>Independent Directors</label>
+            <input type="number" value="2">
+          </div>
+          <div class="form-field">
+            <label>Quorum Requirement</label>
+            <select>
+              <option selected>3 directors (majority)</option>
+              <option>2 directors (minimum)</option>
+              <option>4 directors (supermajority)</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Chair Appointment</label>
+            <select>
+              <option selected>Elected by board</option>
+              <option>Appointed by shareholders</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Meeting Rules -->
+      <div class="form-section">
+        <div class="form-section-title"><span class="icon">📅</span> Meeting Rules</div>
+        <div class="form-grid-3">
+          <div class="form-field">
+            <label>Meeting Frequency</label>
+            <select>
+              <option selected>Quarterly (4/year)</option>
+              <option>Bi-monthly (6/year)</option>
+              <option>Monthly (12/year)</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Notice Period</label>
+            <select>
+              <option>5 business days</option>
+              <option selected>14 days (statutory)</option>
+              <option>21 days</option>
+            </select>
+            <div class="hint">UK Companies Act 2006 default</div>
+          </div>
+          <div class="form-field">
+            <label>Minutes Deadline</label>
+            <select>
+              <option selected>14 days post-meeting</option>
+              <option>30 days post-meeting</option>
+              <option>Custom</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reserved Matters -->
+      <div class="form-section">
+        <div class="form-section-title"><span class="icon">🔐</span> Reserved Matters</div>
+        <div class="reserved-matters">
+          <div class="matter-row checked"><input type="checkbox" checked> <label>Annual budget &amp; business plan approval</label></div>
+          <div class="matter-row checked"><input type="checkbox" checked> <label>Dividend declarations</label></div>
+          <div class="matter-row checked"><input type="checkbox" checked> <label>Capital expenditure &gt; £500,000</label></div>
+          <div class="matter-row checked"><input type="checkbox" checked> <label>Appointment / removal of CEO</label></div>
+          <div class="matter-row checked"><input type="checkbox" checked> <label>Regulatory capital actions</label></div>
+          <div class="matter-row checked"><input type="checkbox" checked> <label>Material contracts &gt; £1M</label></div>
+          <div class="matter-row"><input type="checkbox"> <label>Related-party transactions</label></div>
+          <div class="matter-row"><input type="checkbox"> <label>Litigation &gt; £250,000</label></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Preview Panel -->
+    <div class="preview-panel">
+      <div class="preview-header">
+        <div class="preview-header-title">Document Preview</div>
+        <div class="preview-header-sub">Live preview — updates as you edit</div>
+      </div>
+      <div class="preview-body">
+
+        <!-- Entity card -->
+        <div class="entity-card">
+          <div class="entity-card-name">🇬🇧 Acme Payments Ltd</div>
+          <div class="entity-card-meta">
+            <div class="entity-card-row"><span class="lbl">Company No.</span><span class="val">09876543</span></div>
+            <div class="entity-card-row"><span class="lbl">Structure</span><span class="val">Private Limited</span></div>
+            <div class="entity-card-row"><span class="lbl">Regulator</span><span class="val">FCA</span></div>
+            <div class="entity-card-row"><span class="lbl">Directors</span><span class="val">5 (2 independent)</span></div>
+          </div>
+        </div>
+
+        <div class="jur-badge">🇬🇧 UK Companies Act 2006</div>
+
+        <!-- Document preview -->
+        <div class="doc-preview">
+          <div class="doc-section">
+            <div class="doc-heading">1. Constitution &amp; Authority</div>
+            <div class="doc-clause">The Board is constituted in accordance with the Articles of Association of Acme Payments Ltd and the UK Companies Act 2006.</div>
+          </div>
+          <div class="doc-section">
+            <div class="doc-heading">2. Board Composition</div>
+            <div class="doc-subsection">
+              <div class="doc-line"><span class="key">Total Directors:</span> 5</div>
+              <div class="doc-line"><span class="key">Independent:</span> 2 (minimum)</div>
+              <div class="doc-line"><span class="key">Quorum:</span> 3 directors</div>
+            </div>
+          </div>
+          <div class="doc-section">
+            <div class="doc-heading">3. Meetings</div>
+            <div class="doc-subsection">
+              <div class="doc-line"><span class="key">Frequency:</span> Quarterly (4/year)</div>
+              <div class="doc-line"><span class="key">Notice:</span> 14 days (statutory)</div>
+              <div class="doc-line"><span class="key">Minutes:</span> Within 14 days</div>
+            </div>
+          </div>
+          <div class="doc-section">
+            <div class="doc-heading">4. Reserved Matters</div>
+            <div class="doc-clause">Annual budget · Dividends · Capex &gt;£500K · CEO appointment · Regulatory capital · Material contracts</div>
+          </div>
+          <div class="doc-section">
+            <div class="doc-heading">5. FCA Compliance</div>
+            <div class="doc-clause">The Board shall at all times maintain governance standards in accordance with FCA SYSC requirements applicable to Payment Institutions.</div>
+          </div>
+        </div>
+
+        <div class="section-divider"></div>
+
+        <!-- Stage 2 AI upload section -->
+        <div style="margin-bottom:10px;">
+          <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">Stage 2 — AI Document Analysis <span class="ai-badge">✦ Claude AI</span></div>
+          <div style="font-size:11px;color:#6b7280;margin-bottom:8px;">Upload Constitution &amp; SHA — Claude extracts governance clauses and flags conflicts</div>
+          <div class="upload-zone">
+            <div class="upload-icon">📂</div>
+            <div class="upload-title">Drop documents here</div>
+            <div class="upload-desc">or click to browse</div>
+            <div class="upload-types">
+              <div class="upload-type-pill">PDF</div>
+              <div class="upload-type-pill">DOCX</div>
+            </div>
+          </div>
+          <div class="uploaded-file">
+            <div class="file-icon">📄</div>
+            <div>
+              <div class="file-name">Articles_of_Association.pdf</div>
+              <div class="file-size">284 KB · Uploaded</div>
+            </div>
+            <div class="remove">✕</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Action bar -->
+  <div class="action-bar">
+    <div class="action-bar-left">
+      <div class="progress-dot done"></div>
+      <div class="progress-dot active"></div>
+      <div class="progress-dot pending"></div>
+      <div class="progress-label">Step 2 of 3 — Configure meeting rules &amp; reserved matters</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-secondary btn-sm">Reset to Defaults</button>
+      <button class="btn btn-primary btn-sm">⬇ Generate Stage 1 (.docx)</button>
+      <button class="btn btn-success btn-sm">✦ Generate with AI Analysis</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
