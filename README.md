@@ -10,15 +10,11 @@ GovernanceOS centralises management of legal entities, directors, board meetings
 
 ## Screenshots
 
-| Dashboard | Entity Registry |
-|---|---|
-| ![Dashboard](public/screenshots/screenshot-dashboard.png) | ![Entity Registry](public/screenshots/screenshot-entity-registry.png) |
+![Dashboard](public/screenshots/screenshot-dashboard.png)
 
-| Board Meetings | Terms of Reference Generator |
+| Entity Registry | License Management |
 |---|---|
-| ![Board Meetings](public/screenshots/screenshot-board-meetings.png) | ![ToR Generator](public/screenshots/screenshot-tor-generator.png) |
-
-> **To regenerate screenshots:** Open each HTML file in `public/screenshots/` in Chrome, open DevTools (F12) → Console → run `document.body.style.zoom='1'`, then use the three-dot menu → **Capture full size screenshot**. Save as a PNG with the corresponding filename above.
+| ![Entity Registry](public/screenshots/screenshot-entity-registry.png) | ![Licenses](public/screenshots/screenshot-licenses.png) |
 
 ---
 
