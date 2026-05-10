@@ -70,29 +70,29 @@ Singapore · United Kingdom · Malta · Lithuania · Australia · India · Nethe
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/YOUR_USERNAME/governance-os.git
+git clone https://github.com/prajitnanu/governance-os.git
 cd governance-os
 
 # 2. Install dependencies
 npm install
 
-# 3. Copy environment template
+# 3. Copy environment template and set your database URL
 cp .env.example .env
-# Edit .env and set DATABASE_URL to your PostgreSQL connection string
+# Edit .env — set DATABASE_URL to your PostgreSQL connection string
 
 # 4. Run database migrations
 npm run db:migrate
 
-# 5. Seed demo data (entities, directors, meetings, compliance, licenses)
+# 5. Seed demo data (entities, directors, meetings, licenses)
 npm run db:seed
 
 # 6. Start the development server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3002](http://localhost:3002).
 
-Authentication is **disabled by default** — you'll be signed in automatically as a super_admin. No Okta setup needed for local development.
+Authentication is **disabled by default** — you are signed in automatically as a super_admin. No Okta setup needed for local development.
 
 ---
 
