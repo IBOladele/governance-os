@@ -215,6 +215,7 @@ model Entity {
   shareholders          Shareholder[]     @relation("EntityShareholders")
   ownedShares           Shareholder[]     @relation("EntityAsOwner")
   shareholderLoans      ShareholderLoan[]
+  keyDates              KeyDate[]
 
   @@index([country])
   @@index([status])
@@ -532,6 +533,31 @@ model AuditLog {
   @@index([tableName, recordId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KEY DATES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model KeyDate {
+  id          String    @id @default(cuid())
+  entityId    String?                        // optional — can be group-wide
+  title       String
+  date        DateTime
+  category    String    @default("other")    // filing | regulatory | corporate | financial | other
+  description String?
+  recurrence  String?                        // annual | quarterly | monthly | one_time
+  status      String    @default("pending")  // pending | completed | cancelled
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  entity Entity? @relation(fields: [entityId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([entityId])
+  @@index([status])
+  @@map("key_dates")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
