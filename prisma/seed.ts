@@ -159,13 +159,7 @@ async function main() {
     // Wipe all users so stale rows with old emails don't survive the upsert
     await prisma.user.deleteMany({});
     const users = [
-      { id: 'usr-super-001',   name: 'Alex Chen',         email: 'admin@governanceos.app',       role: 'super_admin' as const, department: 'Executive',  title: 'CEO' },
-      { id: 'usr-admin-001',   name: 'Maya Patel',        email: 'maya.patel@governanceos.app',  role: 'admin' as const,       department: 'Legal',      title: 'General Counsel' },
-      { id: 'usr-legal-001',   name: 'James Whitfield',   email: 'james.w@governanceos.app',     role: 'legal' as const,       department: 'Legal',      title: 'Legal Manager' },
-      { id: 'usr-legal-002',   name: 'Sophie Laurent',    email: 'sophie.l@governanceos.app',    role: 'legal' as const,       department: 'Legal',      title: 'Senior Legal Counsel' },
-      { id: 'usr-finance-001', name: 'David Okafor',      email: 'david.o@governanceos.app',     role: 'finance' as const,     department: 'Finance',    title: 'Finance Manager' },
-      { id: 'usr-finance-002', name: 'Elena Rossi',       email: 'elena.r@governanceos.app',     role: 'finance' as const,     department: 'Finance',    title: 'Regulatory Capital Analyst' },
-      { id: 'usr-viewer-001',  name: 'Raj Patel',         email: 'raj.p@governanceos.app',       role: 'viewer' as const,      department: 'Operations', title: 'Operations Officer' },
+      { id: 'usr-super-001', name: 'Ibrahim Oladele', email: 'ibrahim@monsterlabs.app', role: 'super_admin' as const, department: 'Executive', title: 'CEO' },
     ];
     for (const u of users) {
       await prisma.user.upsert({
