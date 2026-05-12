@@ -12,6 +12,8 @@ declare module 'next-auth' {
       role: UserRole;
       department: string;
       title: string;
+      organisationId: string;
+      organisationName: string;
     } & DefaultSession['user'];
   }
 }
@@ -22,6 +24,8 @@ declare module 'next-auth/jwt' {
     role?: UserRole;
     department?: string;
     title?: string;
+    organisationId?: string;
+    organisationName?: string;
   }
 }
 
@@ -54,6 +58,13 @@ const providers: NextAuthOptions['providers'] = [
 
       const user = await prisma.user.findUnique({
         where: { email: credentials.email.toLowerCase() },
+        include: {
+          memberships: {
+            include: { organisation: true },
+            orderBy: { joinedAt: 'asc' },
+            take: 1,
+          },
+        },
       });
 
       if (!user || !user.isActive || !user.password) return null;
@@ -66,13 +77,17 @@ const providers: NextAuthOptions['providers'] = [
         data:  { lastLoginAt: new Date() },
       });
 
+      const primaryMembership = user.memberships[0];
+
       return {
-        id:         user.id,
-        email:      user.email,
-        name:       user.name,
-        role:       user.role,
-        department: user.department ?? '',
-        title:      user.title ?? '',
+        id:               user.id,
+        email:            user.email,
+        name:             user.name,
+        role:             primaryMembership?.role ?? user.role,
+        department:       user.department ?? '',
+        title:            user.title ?? '',
+        organisationId:   primaryMembership?.organisationId ?? '',
+        organisationName: primaryMembership?.organisation?.name ?? '',
       };
     },
   }),
@@ -108,10 +123,12 @@ export const authOptions: NextAuthOptions = {
       // Credentials sign-in — user object carries our custom fields
       if (user && !account?.provider?.startsWith('okta')) {
         const u = user as any;
-        token.userId     = u.id;
-        token.role       = u.role;
-        token.department = u.department;
-        token.title      = u.title;
+        token.userId           = u.id;
+        token.role             = u.role;
+        token.department       = u.department;
+        token.title            = u.title;
+        token.organisationId   = u.organisationId;
+        token.organisationName = u.organisationName;
         return token;
       }
 
@@ -122,13 +139,25 @@ export const authOptions: NextAuthOptions = {
         const email = user?.email ?? token.email ?? '';
 
         if (email) {
-          const appUser = await prisma.user.findUnique({ where: { email } });
+          const appUser = await prisma.user.findUnique({
+            where: { email },
+            include: {
+              memberships: {
+                include: { organisation: true },
+                orderBy: { joinedAt: 'asc' },
+                take: 1,
+              },
+            },
+          });
           if (appUser) {
-            token.userId     = appUser.id;
-            token.department = appUser.department ?? '';
-            token.title      = appUser.title ?? '';
+            const membership = appUser.memberships[0];
+            token.userId           = appUser.id;
+            token.department       = appUser.department ?? '';
+            token.title            = appUser.title ?? '';
+            token.organisationId   = membership?.organisationId ?? '';
+            token.organisationName = membership?.organisation?.name ?? '';
             await prisma.user.update({ where: { id: appUser.id }, data: { lastLoginAt: new Date() } });
-            token.role = groupRole ?? appUser.role ?? 'viewer';
+            token.role = groupRole ?? membership?.role ?? appUser.role ?? 'viewer';
           }
         }
       }
@@ -138,10 +167,12 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (session.user) {
-        session.user.id         = token.userId ?? token.sub ?? '';
-        session.user.role       = token.role ?? 'viewer';
-        session.user.department = token.department ?? '';
-        session.user.title      = token.title ?? '';
+        session.user.id               = token.userId ?? token.sub ?? '';
+        session.user.role             = token.role ?? 'viewer';
+        session.user.department       = token.department ?? '';
+        session.user.title            = token.title ?? '';
+        session.user.organisationId   = token.organisationId ?? '';
+        session.user.organisationName = token.organisationName ?? '';
       }
       return session;
     },

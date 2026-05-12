@@ -80,7 +80,9 @@ app/                    # Next.js App Router pages and API routes
   alerts/               # Alert centre
   org-chart/            # Interactive corporate structure chart
   calendar/             # Key dates calendar
+  settings/members/     # Team member management (invite, roles)
   api/                  # REST API handlers
+    organisations/      # GET/PATCH org; POST/PATCH/DELETE members
 
 components/             # Shared React components
 lib/
@@ -88,6 +90,7 @@ lib/
   tor/                  # Terms of Reference jurisdiction templates
   prisma.ts             # Prisma singleton
   audit.ts              # Audit log helper
+  org.ts                # Multitenancy helpers (getOrgId, getOrgContext)
 prisma/
   schema.prisma         # 14 models, 10 enums
   seed.ts               # Demo data seed script
@@ -99,14 +102,23 @@ prisma/
 
 ## Database schema
 
-14 models: `Entity`, `Director`, `BoardMeeting`, `MeetingAttendee`,
+16 models: `Organisation`, `OrganisationMember`, `Entity`, `Director`, `BoardMeeting`, `MeetingAttendee`,
 `MeetingDocument`, `MeetingResolution`, `ComplianceObligation`, `License`,
-`RegulatoryCapital`, `BankAccount`, `Alert`, `Document`, `AuditLog`, `User`
+`RegulatoryCapital`, `BankAccount`, `Alert`, `Document`, `AuditLog`, `User`,
+`Shareholder`, `ShareholderLoan`, `KeyDate`, `Submission`
 
 Key relationships:
+- `Organisation` is the tenancy root; `Entity` belongs to `Organisation`
+- `OrganisationMember` links `User` → `Organisation` with a per-org role
 - `Entity` is self-referential (parent/subsidiary tree via `parentEntityId`)
 - `Director`, `License`, `BoardMeeting`, `ComplianceObligation` all belong to `Entity`
 - `isLegacyEntity` flag marks legacy acquired entities
+- `KeyDate` can be group-wide (only `organisationId`) or entity-scoped (`entityId`)
+
+Multitenancy helpers:
+- `lib/org.ts` — `getOrgId()` and `getOrgContext()` resolve tenancy from session
+- All entity queries filter by `organisationId` from session
+- `AUTH_ENABLED=false` bypasses auth and uses `org-default-001`
 
 ---
 
@@ -115,14 +127,11 @@ Key relationships:
 | Variable | Required | Description |
 |---|---|---|
 | `DATABASE_URL` | **Yes** | PostgreSQL connection string |
-| `AUTH_ENABLED` | No | Set `true` to enable Okta SSO (default: `false`) |
+| `NEXTAUTH_SECRET` | **Yes (prod)** | Random secret for JWT signing |
+| `NEXTAUTH_URL` | **Yes (prod)** | Public app URL e.g. `https://your-app.up.railway.app` |
+| `AUTH_ENABLED` | No | Set `true` to enable login (default: `false` = open access) |
 | `ANTHROPIC_API_KEY` | No | For Terms of Reference Stage 2 AI analysis |
 | `SLACK_WEBHOOK_URL` | No | Slack webhook for compliance alerts |
-| `JIRA_BASE_URL` | No | e.g. `https://your-org.atlassian.net` |
-| `JIRA_EMAIL` | No | Jira service account email |
-| `JIRA_API_TOKEN` | No | Jira API token |
-| `JIRA_PROJECT_KEY` | No | Jira project key |
-| `NEXT_PUBLIC_JIRA_BASE_URL` | No | Jira base URL for frontend links |
 
 ---
 
@@ -135,9 +144,8 @@ via Prisma Studio (`npm run db:studio`).
 "Terms of Reference". Stage 1 works without an API key. Stage 2 (AI clause
 extraction) requires `ANTHROPIC_API_KEY` in `.env`.
 
-**Connect Jira** — set all four `JIRA_*` variables in `.env`, then configure a
-Jira automation to POST to `/api/webhooks/jira`. Edit `lib/jiraEntityMap.ts` to
-map your Jira entity name patterns to GovernanceOS entity IDs.
+**Manage team members** — go to Settings → Team Members (`/settings/members`).
+Invite by email; assign roles. Roles are per-organisation.
 
 **Connect Slack** — set `SLACK_WEBHOOK_URL` in `.env`. Compliance alerts will be
 posted automatically when obligations become overdue.

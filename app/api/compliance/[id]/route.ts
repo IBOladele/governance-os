@@ -9,7 +9,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { writeAuditLog, requestMeta } from '@/lib/audit';
-import { pushStatusToJira } from '@/lib/jiraSync';
 
 export async function PATCH(
   request: Request,
@@ -56,13 +55,6 @@ export async function PATCH(
       newValues: updated,
       ...meta,
     });
-
-    // Push status change to Jira (fire-and-forget; never blocks the response)
-    if (body.status && body.status !== existing.status) {
-      pushStatusToJira(existing.description, body.status).catch(() => {
-        // already logged inside pushStatusToJira
-      });
-    }
 
     return NextResponse.json({ data: updated });
   } catch (err) {

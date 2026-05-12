@@ -1,14 +1,18 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { writeAuditLog, requestMeta } from '@/lib/audit';
+import { getOrgContext } from '@/lib/org';
 
 export async function GET(request: Request) {
   try {
+    const ctx = await getOrgContext();
+    if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const country = searchParams.get('country');
 
-    const where: any = {};
+    const where: any = { organisationId: ctx.organisationId };
     if (status) where.status = status;
     if (country) where.country = country;
 
@@ -30,6 +34,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const ctx = await getOrgContext();
+    if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const body = await request.json();
 
     const entity = await prisma.entity.create({
@@ -48,6 +55,7 @@ export async function POST(request: Request) {
         isLegacyEntity:     body.isLegacyEntity || false,
         status:             body.status || 'active',
         notes:              body.notes || null,
+        organisationId:     ctx.organisationId,
       },
     });
 

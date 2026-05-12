@@ -171,6 +171,23 @@ async function main() {
     console.log(`✓ Seeded ${users.length} users`);
 
     // ──────────────────────────────────────────────────────────────────────
+    // ORGANISATION  (default tenant)
+    // ──────────────────────────────────────────────────────────────────────
+    console.log('Seeding default organisation...');
+    const defaultOrg = await prisma.organisation.upsert({
+      where: { slug: 'monster-labs' },
+      update: { name: 'Monster Labs', plan: 'enterprise', isActive: true },
+      create: { id: 'org-default-001', name: 'Monster Labs', slug: 'monster-labs', plan: 'enterprise', isActive: true },
+    });
+    // Add Ibrahim as super_admin member
+    await prisma.organisationMember.upsert({
+      where: { organisationId_userId: { organisationId: defaultOrg.id, userId: 'usr-super-001' } },
+      update: { role: 'super_admin' },
+      create: { organisationId: defaultOrg.id, userId: 'usr-super-001', role: 'super_admin' },
+    });
+    console.log(`✓ Organisation "${defaultOrg.name}" ready (id: ${defaultOrg.id})`);
+
+    // ──────────────────────────────────────────────────────────────────────
     // ENTITIES  (two-pass to satisfy self-referential parentEntityId FK)
     // ──────────────────────────────────────────────────────────────────────
     console.log('Seeding entities...');
@@ -198,6 +215,7 @@ async function main() {
         status: e.status,
         notes: notesParts.length ? notesParts.join('\n\n') : null,
         parentEntityId: null, // pass 2 sets this
+        organisationId: defaultOrg.id,
       });
       await prisma.entity.upsert({ where: { id: e.id }, update: data1, create: data1 });
     }

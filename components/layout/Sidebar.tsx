@@ -8,7 +8,7 @@ import {
   Building2, LayoutDashboard, Calendar, FileText,
   Users, TrendingUp, Bell, ChevronRight, Shield,
   Globe, LogOut, UserCog, ChevronDown, ClipboardList,
-  GitBranch, MessageSquarePlus,
+  GitBranch, MessageSquarePlus, Settings,
 } from 'lucide-react';
 import { useState } from 'react';
 import type { UserRole } from '@/lib/db/users';
@@ -31,6 +31,7 @@ const ALL_NAV = [
 const ADMIN_NAV = [
   { href: '/admin/users',       label: 'User Management', icon: UserCog,           module: 'admin' },
   { href: '/admin/submissions', label: 'Submissions',     icon: MessageSquarePlus, module: 'admin' },
+  { href: '/settings/members',  label: 'Team Members',    icon: Settings,          module: 'admin' },
 ];
 
 // Permissions per role (matches ROLE_PERMISSIONS in users.ts — duplicated to avoid a server import in this client component)
@@ -57,7 +58,7 @@ export default function Sidebar() {
 
   // When auth is disabled, fall back to the seed super_admin so the UI is fully functional
   const AUTH_DISABLED = process.env.NEXT_PUBLIC_AUTH_ENABLED !== 'true';
-  const fallbackUser = { name: 'Alex Chen', email: 'admin@governanceos.app', role: 'super_admin' as UserRole, department: 'Executive', title: 'CEO' };
+  const fallbackUser = { name: 'Ibrahim Oladele', email: 'ibrahim@monsterlabs.org', role: 'super_admin' as UserRole, department: 'Executive', title: 'CEO', organisationId: 'org-default-001', organisationName: 'Monster Labs' };
 
   const user = session?.user ?? (AUTH_DISABLED ? fallbackUser : null);
   const role = (user?.role ?? 'super_admin') as UserRole;
@@ -70,15 +71,17 @@ export default function Sidebar() {
 
   return (
     <aside className="w-64 min-h-screen bg-slate-900 text-white flex flex-col shrink-0">
-      {/* Logo */}
+      {/* Logo + org */}
       <div className="px-6 py-5 border-b border-slate-700">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center shrink-0">
             <Globe className="w-5 h-5 text-white" />
           </div>
-          <div>
-            <p className="font-semibold text-white text-sm leading-tight">EntityOS</p>
-            <p className="text-slate-400 text-xs">GovernanceOS</p>
+          <div className="min-w-0">
+            <p className="font-semibold text-white text-sm leading-tight truncate">
+              {(user as any)?.organisationName || 'GovernanceOS'}
+            </p>
+            <p className="text-slate-400 text-xs">EntityOS Platform</p>
           </div>
         </div>
       </div>
@@ -159,8 +162,11 @@ export default function Sidebar() {
           <div className="mt-1 mx-1 bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
             <div className="px-4 py-3 border-b border-slate-700">
               <p className="text-xs text-slate-400 truncate">{user?.email}</p>
-              {session?.user?.department && (
-                <p className="text-xs text-slate-500 mt-0.5">{session.user.department} · {session.user.title}</p>
+              {(user as any)?.department && (
+                <p className="text-xs text-slate-500 mt-0.5">{(user as any).department} · {(user as any).title}</p>
+              )}
+              {(user as any)?.organisationName && (
+                <p className="text-xs text-indigo-400 mt-1 font-medium truncate">{(user as any).organisationName}</p>
               )}
             </div>
             <button

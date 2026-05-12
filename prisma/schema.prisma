@@ -164,11 +164,52 @@ model User {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  accounts  Account[]
-  sessions  Session[]
-  auditLogs AuditLog[]
+  accounts    Account[]
+  sessions    Session[]
+  auditLogs   AuditLog[]
+  memberships OrganisationMember[]
 
   @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ORGANISATION  (multitenancy root)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Organisation {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      String   @default("starter") // starter | pro | enterprise
+  isActive  Boolean  @default(true)
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  OrganisationMember[]
+  entities Entity[]
+  keyDates KeyDate[]
+
+  @@map("organisations")
+}
+
+model OrganisationMember {
+  id             String       @id @default(cuid())
+  organisationId String
+  userId         String
+  role           UserRole     @default(viewer)
+  invitedBy      String?      // userId of inviter
+  joinedAt       DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, userId])
+  @@index([organisationId])
+  @@index([userId])
+  @@map("organisation_members")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -195,6 +236,10 @@ model Entity {
   healthScore        Int?         // 0-100, computed by alert engine
   notes              String?
 
+  // Organisation (multitenancy)
+  organisationId String?
+  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: SetNull)
+
   // Self-referential parent/subsidiary tree
   parentEntityId String?
   parent         Entity?  @relation("EntityHierarchy", fields: [parentEntityId], references: [id])
@@ -220,6 +265,7 @@ model Entity {
   @@index([country])
   @@index([status])
   @@index([parentEntityId])
+  @@index([organisationId])
   @@map("entities")
 }
 
@@ -540,22 +586,25 @@ model AuditLog {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model KeyDate {
-  id          String    @id @default(cuid())
-  entityId    String?                        // optional — can be group-wide
-  title       String
-  date        DateTime
-  category    String    @default("other")    // filing | regulatory | corporate | financial | other
-  description String?
-  recurrence  String?                        // annual | quarterly | monthly | one_time
-  status      String    @default("pending")  // pending | completed | cancelled
-  notes       String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id             String        @id @default(cuid())
+  entityId       String?                        // optional — can be group-wide
+  organisationId String?                        // scopes group-wide dates to an org
+  title          String
+  date           DateTime
+  category       String        @default("other")    // filing | regulatory | corporate | financial | other
+  description    String?
+  recurrence     String?                        // annual | quarterly | monthly | one_time
+  status         String        @default("pending")  // pending | completed | cancelled
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
-  entity Entity? @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  entity       Entity?       @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: SetNull)
 
   @@index([date])
   @@index([entityId])
+  @@index([organisationId])
   @@index([status])
   @@map("key_dates")
 }
