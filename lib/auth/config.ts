@@ -1,13 +1,9 @@
-// EntityOS — NextAuth v4 Configuration
-// Provider: Okta OIDC
-// Role resolution: Okta group → EntityOS role mapping
-
 import type { NextAuthOptions, DefaultSession } from 'next-auth';
 import OktaProvider from 'next-auth/providers/okta';
-import { getUserByEmail, updateUser } from '@/lib/db/users';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import { compare } from 'bcryptjs';
+import { prisma } from '@/lib/prisma';
 import type { UserRole } from '@/lib/db/users';
-
-// ─── Type augmentation ────────────────────────────────────────────────────────
 
 declare module 'next-auth' {
   interface Session {
@@ -29,8 +25,6 @@ declare module 'next-auth/jwt' {
   }
 }
 
-// ─── Okta group → EntityOS role mapping ──────────────────────────────────────
-
 const OKTA_GROUP_ROLE_MAP: Record<string, UserRole> = {
   'EntityOS-SuperAdmin': 'super_admin',
   'EntityOS-Admin':      'admin',
@@ -39,34 +33,69 @@ const OKTA_GROUP_ROLE_MAP: Record<string, UserRole> = {
   'EntityOS-Viewer':     'viewer',
 };
 
-// Priority order — highest privilege wins when a user is in multiple groups
 const ROLE_PRIORITY: UserRole[] = ['super_admin', 'admin', 'legal', 'finance', 'viewer'];
 
 function resolveRoleFromGroups(groups: string[]): UserRole | null {
   const mapped = groups
     .map(g => OKTA_GROUP_ROLE_MAP[g])
     .filter((r): r is UserRole => !!r);
-
-  // Return the highest-priority role found
   return ROLE_PRIORITY.find(r => mapped.includes(r)) ?? null;
 }
 
-// ─── Auth options ─────────────────────────────────────────────────────────────
+const providers: NextAuthOptions['providers'] = [
+  CredentialsProvider({
+    name: 'credentials',
+    credentials: {
+      email:    { label: 'Email',    type: 'email' },
+      password: { label: 'Password', type: 'password' },
+    },
+    async authorize(credentials) {
+      if (!credentials?.email || !credentials?.password) return null;
+
+      const user = await prisma.user.findUnique({
+        where: { email: credentials.email.toLowerCase() },
+      });
+
+      if (!user || !user.isActive || !user.password) return null;
+
+      const valid = await compare(credentials.password, user.password);
+      if (!valid) return null;
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data:  { lastLoginAt: new Date() },
+      });
+
+      return {
+        id:         user.id,
+        email:      user.email,
+        name:       user.name,
+        role:       user.role,
+        department: user.department ?? '',
+        title:      user.title ?? '',
+      };
+    },
+  }),
+];
+
+// Only add Okta if fully configured
+if (process.env.OKTA_CLIENT_ID && process.env.OKTA_CLIENT_SECRET && process.env.OKTA_ISSUER) {
+  providers.push(
+    OktaProvider({
+      clientId:     process.env.OKTA_CLIENT_ID,
+      clientSecret: process.env.OKTA_CLIENT_SECRET,
+      issuer:       process.env.OKTA_ISSUER,
+      authorization: { params: { scope: 'openid profile email groups' } },
+    })
+  );
+}
 
 export const authOptions: NextAuthOptions = {
-  providers: [
-    OktaProvider({
-      clientId:     process.env.OKTA_CLIENT_ID!,
-      clientSecret: process.env.OKTA_CLIENT_SECRET!,
-      issuer:       process.env.OKTA_ISSUER!,
-      // Request groups claim from Okta (must be configured in Okta app to send groups)
-      authorization: { params: { scope: 'openid profile email groups' } },
-    }),
-  ],
+  providers,
 
   session: {
     strategy: 'jwt',
-    maxAge: 8 * 60 * 60,   // 8-hour session
+    maxAge: 8 * 60 * 60,
   },
 
   pages: {
@@ -76,27 +105,34 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async jwt({ token, user, account, profile }) {
-      // Only runs on first sign-in (account + profile are populated)
+      // Credentials sign-in — user object carries our custom fields
+      if (user && !account?.provider?.startsWith('okta')) {
+        const u = user as any;
+        token.userId     = u.id;
+        token.role       = u.role;
+        token.department = u.department;
+        token.title      = u.title;
+        return token;
+      }
+
+      // Okta sign-in
       if (account && profile) {
         const groups: string[] = (profile as any).groups ?? [];
-
-        // Resolve role from Okta group membership
         const groupRole = resolveRoleFromGroups(groups);
-
-        // Also check email-based user record for metadata (department, title)
         const email = user?.email ?? token.email ?? '';
-        const appUser = email ? getUserByEmail(email) : undefined;
 
-        if (appUser) {
-          token.userId     = appUser.id;
-          token.department = appUser.department;
-          token.title      = appUser.title;
-          updateUser(appUser.id, { lastLoginAt: new Date().toISOString() });
+        if (email) {
+          const appUser = await prisma.user.findUnique({ where: { email } });
+          if (appUser) {
+            token.userId     = appUser.id;
+            token.department = appUser.department ?? '';
+            token.title      = appUser.title ?? '';
+            await prisma.user.update({ where: { id: appUser.id }, data: { lastLoginAt: new Date() } });
+            token.role = groupRole ?? appUser.role ?? 'viewer';
+          }
         }
-
-        // Group mapping takes priority; fall back to email-based role, then viewer
-        token.role = groupRole ?? appUser?.role ?? 'viewer';
       }
+
       return token;
     },
 

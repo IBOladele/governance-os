@@ -1,8 +1,9 @@
 'use client';
 
 import type { Entity } from '@/lib/db/schema';
-import { Download } from 'lucide-react';
 import { useRef, useCallback } from 'react';
+
+type OwnershipMap = Record<string, { ownerEntityId: string; pct: number; shareClass: string }[]>;
 
 const REGIONS = [
   {
@@ -36,32 +37,38 @@ const REGIONS = [
 ] as const;
 
 // ── Entity card ───────────────────────────────────────────────────────────────
-function Card({ entity, accent }: { entity: Entity; accent: string }) {
+function Card({ entity, accent, ownership }: {
+  entity: Entity;
+  accent: string;
+  ownership?: { pct: number; shareClass: string }[];
+}) {
   const score = entity.healthScore;
   const [sbg, sfg] = !score ? ['', '']
     : score >= 80 ? ['#dcfce7', '#166534']
     : score >= 60 ? ['#fef3c7', '#92400e']
     : ['#fee2e2', '#991b1b'];
 
+  const totalPct = ownership?.reduce((s, o) => s + o.pct, 0);
+
   return (
     <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-white w-full">
-      {/* Coloured header */}
       <div className="flex items-center justify-between px-3 py-2" style={{ backgroundColor: accent }}>
         <p className="text-xs font-semibold text-white leading-snug flex-1 pr-2 truncate">
           {entity.name}
         </p>
         {score !== null && score !== undefined && (
-          <span
-            className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0"
-            style={{ backgroundColor: sbg, color: sfg }}
-          >
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ backgroundColor: sbg, color: sfg }}>
             {score}
           </span>
         )}
       </div>
-      {/* Country row */}
-      <div className="px-3 py-1.5">
+      <div className="px-3 py-1.5 flex items-center justify-between gap-2">
         <p className="text-[11px] text-gray-500">{entity.country}</p>
+        {totalPct != null && totalPct > 0 && (
+          <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded shrink-0">
+            {totalPct.toFixed(0)}%
+          </span>
+        )}
       </div>
     </div>
   );
@@ -69,13 +76,12 @@ function Card({ entity, accent }: { entity: Entity; accent: string }) {
 
 // ── Single region column ──────────────────────────────────────────────────────
 function RegionColumn({
-  region,
-  entities,
-  rootId,
+  region, entities, rootId, ownershipMap,
 }: {
   region: typeof REGIONS[number];
   entities: Entity[];
   rootId: string;
+  ownershipMap: OwnershipMap;
 }) {
   const regionEnts = entities.filter(
     e => (region.countries as readonly string[]).includes(e.country) && e.id !== rootId,
@@ -84,14 +90,13 @@ function RegionColumn({
 
   const regionIds = new Set(regionEnts.map(e => e.id));
   const heads = regionEnts.filter(e => !e.parentEntityId || !regionIds.has(e.parentEntityId));
-  const subs = regionEnts.filter(e => !!e.parentEntityId && regionIds.has(e.parentEntityId));
+  const subs  = regionEnts.filter(e => !!e.parentEntityId && regionIds.has(e.parentEntityId));
 
   return (
     <div
       className="flex-1 min-w-[210px] max-w-xs rounded-xl border p-3 flex flex-col gap-3"
       style={{ borderColor: region.border, backgroundColor: region.bg }}
     >
-      {/* Region header */}
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: region.color }}>
           {region.name}
@@ -101,31 +106,19 @@ function RegionColumn({
         </span>
       </div>
 
-      {/* Tree per head entity */}
       {heads.map(head => {
         const kids = subs.filter(s => s.parentEntityId === head.id);
         return (
           <div key={head.id} className="flex flex-col gap-0">
-            {/* Head card */}
-            <Card entity={head} accent={region.color} />
-
-            {/* Children indented below with tree lines */}
+            <Card entity={head} accent={region.color} ownership={ownershipMap[head.id]} />
             {kids.length > 0 && (
               <div className="relative ml-4 mt-1 flex flex-col gap-1.5">
-                {/* Vertical spine */}
-                <div
-                  className="absolute left-0 top-0 bottom-3 w-px"
-                  style={{ backgroundColor: region.color + '55' }}
-                />
-                {kids.map((kid, i) => (
+                <div className="absolute left-0 top-0 bottom-3 w-px" style={{ backgroundColor: region.color + '55' }} />
+                {kids.map(kid => (
                   <div key={kid.id} className="relative flex items-start gap-2">
-                    {/* Horizontal branch */}
-                    <div
-                      className="absolute left-0 top-4 h-px w-3"
-                      style={{ backgroundColor: region.color + '55' }}
-                    />
+                    <div className="absolute left-0 top-4 h-px w-3" style={{ backgroundColor: region.color + '55' }} />
                     <div className="pl-4 w-full">
-                      <Card entity={kid} accent={region.color + 'cc'} />
+                      <Card entity={kid} accent={region.color + 'cc'} ownership={ownershipMap[kid.id]} />
                     </div>
                   </div>
                 ))}
@@ -168,7 +161,7 @@ function TopConnector() {
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
-export default function VisualOrgChart({ entities }: { entities: Entity[] }) {
+export default function VisualOrgChart({ entities, ownershipMap }: { entities: Entity[]; ownershipMap: OwnershipMap }) {
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const active = entities.filter(e => e.status !== 'dissolved');
@@ -222,6 +215,7 @@ export default function VisualOrgChart({ entities }: { entities: Entity[] }) {
                 region={region}
                 entities={active}
                 rootId={root.id}
+                ownershipMap={ownershipMap}
               />
             ))}
           </div>

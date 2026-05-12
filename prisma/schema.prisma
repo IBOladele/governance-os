@@ -159,6 +159,7 @@ model User {
   title       String?
   isActive    Boolean   @default(true)
   oktaId      String?   @unique
+  password    String?   // bcrypt hash — null for SSO-only users
   lastLoginAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -211,6 +212,9 @@ model Entity {
   alerts                Alert[]
   documents             Document[]
   auditLogs             AuditLog[]
+  shareholders          Shareholder[]     @relation("EntityShareholders")
+  ownedShares           Shareholder[]     @relation("EntityAsOwner")
+  shareholderLoans      ShareholderLoan[]
 
   @@index([country])
   @@index([status])
@@ -528,6 +532,75 @@ model AuditLog {
   @@index([tableName, recordId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SHAREHOLDING
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum ShareholderType {
+  founding
+  nominee
+  investor
+  corporate
+  individual
+}
+
+enum ShareholderLoanStatus {
+  active
+  repaid
+  converted
+  written_off
+}
+
+model Shareholder {
+  id              String          @id @default(cuid())
+  entityId        String          // the company whose shares are held
+  name            String
+  email           String?
+  shareholderType ShareholderType
+  shareClass      String          @default("Ordinary") // Ordinary | Preference A | etc.
+  sharesHeld      Int             @default(0)
+  totalShares     Int             @default(0)          // total issued shares of this entity
+  percentageOwned Float           @default(0)          // direct % entry or derived
+  entityOwnerId   String?         // if this shareholder IS another tracked entity
+  isActive        Boolean         @default(true)
+  appointmentDate DateTime?
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  entity        Entity            @relation("EntityShareholders", fields: [entityId], references: [id], onDelete: Cascade)
+  ownerEntity   Entity?           @relation("EntityAsOwner", fields: [entityOwnerId], references: [id])
+  loans         ShareholderLoan[]
+
+  @@index([entityId])
+  @@index([entityOwnerId])
+  @@map("shareholders")
+}
+
+model ShareholderLoan {
+  id              String               @id @default(cuid())
+  entityId        String               // the borrowing company
+  shareholderId   String               // must be an existing shareholder of this entity
+  principal       Float
+  currency        String               @default("USD")
+  interestRate    Float?               // null = interest-free
+  issueDate       DateTime
+  maturityDate    DateTime?            // null = on-demand
+  isConvertible   Boolean              @default(false)
+  conversionTerms String?
+  status          ShareholderLoanStatus @default(active)
+  notes           String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  entity      Entity      @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  shareholder Shareholder @relation(fields: [shareholderId], references: [id], onDelete: Cascade)
+
+  @@index([entityId])
+  @@index([shareholderId])
+  @@map("shareholder_loans")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -159,7 +159,7 @@ async function main() {
     // Wipe all users so stale rows with old emails don't survive the upsert
     await prisma.user.deleteMany({});
     const users = [
-      { id: 'usr-super-001', name: 'Ibrahim Oladele', email: 'ibrahim@monsterlabs.app', role: 'super_admin' as const, department: 'Executive', title: 'CEO' },
+      { id: 'usr-super-001', name: 'Ibrahim Oladele', email: 'ibrahim@monsterlabs.org', role: 'super_admin' as const, department: 'Executive', title: 'CEO', password: '$2b$12$L2eaActHHXheRsn22PXLROHXOyD9xKyEwdoXLE8EjHOqLv7xpDWv2' },
     ];
     for (const u of users) {
       await prisma.user.upsert({

@@ -1,4 +1,6 @@
 import { notFound } from 'next/navigation';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth/config';
 import Header from '@/components/layout/Header';
 import {
   getEntities, getDirectors, getComplianceObligations, getLicenses,
@@ -8,6 +10,7 @@ import { formatDate, formatCurrency, getStatusColor, getFlagEmoji, daysUntil } f
 import { ArrowLeft, Shield, Calendar, TrendingUp, Users, Building2, ExternalLink, Info, FileText } from 'lucide-react';
 import Link from 'next/link';
 import EntityEditModal from '@/components/entities/EntityEditModal';
+import ShareholdersTab from '@/components/entities/ShareholdersTab';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +47,8 @@ function HealthScoreRing({ score }: { score: number | null }) {
 
 export default async function EntityDetailPage({ params }: Props) {
   const { id } = await params;
-  const [entities, directors, complianceObligations, licenses, regulatoryCapital, boardMeetings] = await Promise.all([
+  const [session, entities, directors, complianceObligations, licenses, regulatoryCapital, boardMeetings] = await Promise.all([
+    getServerSession(authOptions),
     getEntities(),
     getDirectors(),
     getComplianceObligations(),
@@ -52,6 +56,7 @@ export default async function EntityDetailPage({ params }: Props) {
     getRegulatoryCapital(),
     getBoardMeetings()
   ]);
+  const isSuperAdmin = session?.user?.role === 'super_admin';
 
   const entity = entities.find(e => e.id === id);
   if (!entity) notFound();
@@ -403,6 +408,16 @@ export default async function EntityDetailPage({ params }: Props) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Shareholders — super_admin only */}
+        {isSuperAdmin && (
+          <div className="bg-white rounded-xl border border-gray-100 p-6">
+            <ShareholdersTab
+              entityId={entity.id}
+              entities={entities.map(e => ({ id: e.id, name: e.name }))}
+            />
           </div>
         )}
 
