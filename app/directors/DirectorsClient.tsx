@@ -10,13 +10,6 @@ import { FormField, Input, Select, Button } from '@/components/ui/FormField';
 import type { Director, Entity, BoardMeeting } from '@/lib/db/schema';
 
 // ── DateSelect ──────────────────────────────────────────────────────────────
-// Day / Month / Year dropdowns — much easier to jump to past years than
-// the native <input type="date"> calendar widget.
-const MONTHS = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December',
-];
-
 function DateSelect({
   value,
   onChange,
@@ -30,61 +23,18 @@ function DateSelect({
   minYear?: number;
   maxYear?: number;
 }) {
-  const now = new Date();
   const min = minYear ?? 1970;
-  const max = maxYear ?? now.getFullYear() + 10;
-
-  const parts   = value ? value.split('-') : ['', '', ''];
-  const selYear = parts[0] ?? '';
-  const selMon  = parts[1] ?? '';   // '01'–'12'
-  const selDay  = parts[2] ?? '';   // '01'–'31'
-
-  const daysInMonth = selYear && selMon
-    ? new Date(Number(selYear), Number(selMon), 0).getDate()
-    : 31;
-
-  const emit = (y: string, m: string, d: string) => {
-    if (y && m && d) onChange(`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`);
-    else if (!y && !m && !d) onChange('');
-    // partial — don't emit yet
-  };
-
-  const sel = 'w-full border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white';
-
+  const max = maxYear ?? new Date().getFullYear() + 10;
   return (
-    <div className="grid grid-cols-3 gap-2">
-      <select
-        value={selDay}
-        onChange={e => emit(selYear, selMon, e.target.value)}
-        required={required}
-        className={sel}
-      >
-        <option value="">Day</option>
-        {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => (
-          <option key={d} value={String(d).padStart(2, '0')}>{d}</option>
-        ))}
-      </select>
-      <select
-        value={selMon}
-        onChange={e => emit(selYear, e.target.value, selDay)}
-        className={sel}
-      >
-        <option value="">Month</option>
-        {MONTHS.map((m, i) => (
-          <option key={m} value={String(i + 1).padStart(2, '0')}>{m}</option>
-        ))}
-      </select>
-      <select
-        value={selYear}
-        onChange={e => emit(e.target.value, selMon, selDay)}
-        className={sel}
-      >
-        <option value="">Year</option>
-        {Array.from({ length: max - min + 1 }, (_, i) => max - i).map(y => (
-          <option key={y} value={String(y)}>{y}</option>
-        ))}
-      </select>
-    </div>
+    <input
+      type="date"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      required={required}
+      min={`${min}-01-01`}
+      max={`${max}-12-31`}
+      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+    />
   );
 }
 
