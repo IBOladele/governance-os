@@ -28,8 +28,9 @@ export async function PATCH(
         auditor:           body.auditor           ?? existing.auditor,
         regulator:         body.regulator         ?? existing.regulator,
         financialYearEnd:  body.financialYearEnd  ?? existing.financialYearEnd,
+        country:           body.country            ?? existing.country,
         incorporationDate: body.incorporationDate !== undefined
-          ? (body.incorporationDate ? body.incorporationDate : existing.incorporationDate)
+          ? (body.incorporationDate ? new Date(body.incorporationDate) : existing.incorporationDate)
           : existing.incorporationDate,
         legalStructure:    body.legalStructure    ?? existing.legalStructure,
         purpose:           body.purpose           ?? ex.purpose,
