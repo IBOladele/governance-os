@@ -47,12 +47,15 @@ interface Props {
   entities: Entity[];
 }
 
+const EMPTY_FORM = {
+  name: '', country: '', legalStructure: '', registrationNumber: '',
+  registeredAddress: '', incorporationDate: '', financialYearEnd: '',
+  governingLaw: '', auditor: '', parentEntityId: '', regulator: '',
+  status: 'active', notes: '',
+};
+
 export default function AddEntityModal({ isOpen, onClose, entities }: Props) {
-  const [form, setForm] = useState({
-    name: '', country: '', legalStructure: '', registrationNumber: '',
-    incorporationDate: '', financialYearEnd: '', auditor: '',
-    parentEntityId: '', regulator: '', status: 'active', notes: '',
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -77,7 +80,7 @@ export default function AddEntityModal({ isOpen, onClose, entities }: Props) {
       setTimeout(() => {
         setSaved(false);
         onClose();
-        setForm({ name: '', country: '', legalStructure: '', registrationNumber: '', incorporationDate: '', financialYearEnd: '', auditor: '', parentEntityId: '', regulator: '', status: 'active', notes: '' });
+        setForm(EMPTY_FORM);
       }, 1500);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to register entity');
@@ -119,8 +122,16 @@ export default function AddEntityModal({ isOpen, onClose, entities }: Props) {
               <Input type="date" value={form.incorporationDate} onChange={set('incorporationDate')} required />
             </FormField>
 
-            <FormField label="Regulator" required>
-              <Input placeholder="e.g. FCA, MAS, FinCEN" value={form.regulator} onChange={set('regulator')} required />
+            <FormField label="Registered Address" required className="col-span-2">
+              <Input placeholder="e.g. 123 High Street, London, EC1A 1BB" value={form.registeredAddress} onChange={set('registeredAddress')} required />
+            </FormField>
+
+            <FormField label="Governing Law" required>
+              <Input placeholder="e.g. England & Wales, Singapore" value={form.governingLaw} onChange={set('governingLaw')} required />
+            </FormField>
+
+            <FormField label="Regulator">
+              <Input placeholder="e.g. FCA, MAS, FinCEN" value={form.regulator} onChange={set('regulator')} />
             </FormField>
 
             <FormField label="Auditor">
