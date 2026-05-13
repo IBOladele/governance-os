@@ -2,6 +2,9 @@
  * PATCH /api/compliance/[id] — update a compliance obligation
  * DELETE /api/compliance/[id] — delete it
  *
+ * Both operations require authentication and verify the obligation belongs
+ * to the caller's organisation before proceeding.
+ *
  * PATCH body accepts any of: status, submittedDate, completedAt,
  * filingReference, confirmedBy, owner, notes. Passing `status: 'completed'`
  * without an explicit `completedAt` stamps the current time.
@@ -9,15 +12,24 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { writeAuditLog, requestMeta } from '@/lib/audit';
+import { requireAuth } from '@/lib/auth/require';
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const auth = await requireAuth(['super_admin', 'admin', 'legal']);
+  if (!auth.ok) return auth.response;
+  const { ctx } = auth;
+
   const { id } = await params;
   try {
     const body = await request.json();
-    const existing = await prisma.complianceObligation.findUnique({ where: { id } });
+
+    // Verify the obligation belongs to the caller's org
+    const existing = await prisma.complianceObligation.findFirst({
+      where: { id, entity: { organisationId: ctx.organisationId } },
+    });
     if (!existing) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
@@ -51,6 +63,7 @@ export async function PATCH(
       tableName: 'compliance_obligations',
       recordId: id,
       entityId: existing.entityId,
+      userId: ctx.userId,
       oldValues: existing,
       newValues: updated,
       ...meta,
@@ -70,12 +83,20 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const auth = await requireAuth(['super_admin', 'admin']);
+  if (!auth.ok) return auth.response;
+  const { ctx } = auth;
+
   const { id } = await params;
   try {
-    const existing = await prisma.complianceObligation.findUnique({ where: { id } });
+    // Verify the obligation belongs to the caller's org
+    const existing = await prisma.complianceObligation.findFirst({
+      where: { id, entity: { organisationId: ctx.organisationId } },
+    });
     if (!existing) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
+
     await prisma.complianceObligation.delete({ where: { id } });
 
     const meta = requestMeta(request);
@@ -84,6 +105,7 @@ export async function DELETE(
       tableName: 'compliance_obligations',
       recordId: id,
       entityId: existing.entityId,
+      userId: ctx.userId,
       oldValues: existing,
       ...meta,
     });

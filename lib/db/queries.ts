@@ -1,6 +1,10 @@
 // EntityOS – Prisma-backed data queries
+// All functions are org-scoped: they resolve the caller's organisationId from
+// the session (via getOrgContext) and filter every query accordingly.
+// If the session is absent, functions return empty arrays / null — no data leaks.
 
 import prisma from '@/lib/prisma';
+import { getOrgContext } from '@/lib/org';
 import type {
   Entity,
   Director,
@@ -24,12 +28,24 @@ import type {
 const iso = (d: Date | null | undefined): string => (d ? d.toISOString() : '');
 const isoOrNull = (d: Date | null | undefined): string | null => (d ? d.toISOString() : null);
 
+/** Resolves the caller's org from session. Returns null if unauthenticated. */
+async function getOrgId(): Promise<string | null> {
+  const ctx = await getOrgContext();
+  return ctx?.organisationId ?? null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Entities
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getEntities(): Promise<Entity[]> {
-  const rows = await prisma.entity.findMany({ orderBy: { name: 'asc' } });
+  const organisationId = await getOrgId();
+  if (!organisationId) return [];
+
+  const rows = await prisma.entity.findMany({
+    where: { organisationId },
+    orderBy: { name: 'asc' },
+  });
   rows.sort((a, b) => {
     const aHoldCo = a.parentEntityId === null || a.parentEntityId === '';
     const bHoldCo = b.parentEntityId === null || b.parentEntityId === '';
@@ -67,7 +83,11 @@ export async function getEntities(): Promise<Entity[]> {
 }
 
 export async function getEntityById(id: string): Promise<Entity | null> {
-  const e = await prisma.entity.findUnique({ where: { id } });
+  const organisationId = await getOrgId();
+  if (!organisationId) return null;
+
+  // Use findFirst with organisationId to prevent cross-tenant ID enumeration
+  const e = await prisma.entity.findFirst({ where: { id, organisationId } });
   if (!e) return null;
   return {
     id: e.id,
@@ -99,7 +119,13 @@ export async function getEntityById(id: string): Promise<Entity | null> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getDirectors(): Promise<Director[]> {
-  const rows = await prisma.director.findMany({ orderBy: { name: 'asc' } });
+  const organisationId = await getOrgId();
+  if (!organisationId) return [];
+
+  const rows = await prisma.director.findMany({
+    where: { entity: { organisationId } },
+    orderBy: { name: 'asc' },
+  });
   return rows.map((d) => ({
     id: d.id,
     entityId: d.entityId,
@@ -121,7 +147,13 @@ export async function getDirectors(): Promise<Director[]> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getBoardMeetings(): Promise<BoardMeeting[]> {
-  const rows = await prisma.boardMeeting.findMany({ orderBy: { meetingDate: 'asc' } });
+  const organisationId = await getOrgId();
+  if (!organisationId) return [];
+
+  const rows = await prisma.boardMeeting.findMany({
+    where: { entity: { organisationId } },
+    orderBy: { meetingDate: 'asc' },
+  });
   return rows.map((m) => ({
     id: m.id,
     entityId: m.entityId,
@@ -150,8 +182,14 @@ export async function getBoardMeetings(): Promise<BoardMeeting[]> {
 }
 
 export async function getMeetingAttendees(meetingId?: string): Promise<MeetingAttendee[]> {
+  const organisationId = await getOrgId();
+  if (!organisationId) return [];
+
   const rows = await prisma.meetingAttendee.findMany({
-    where: meetingId ? { meetingId } : undefined,
+    where: {
+      ...(meetingId ? { meetingId } : {}),
+      meeting: { entity: { organisationId } },
+    },
   });
   return rows.map((a) => ({
     id: a.id,
@@ -164,8 +202,14 @@ export async function getMeetingAttendees(meetingId?: string): Promise<MeetingAt
 }
 
 export async function getMeetingDocuments(meetingId?: string): Promise<MeetingDocument[]> {
+  const organisationId = await getOrgId();
+  if (!organisationId) return [];
+
   const rows = await prisma.meetingDocument.findMany({
-    where: meetingId ? { meetingId } : undefined,
+    where: {
+      ...(meetingId ? { meetingId } : {}),
+      meeting: { entity: { organisationId } },
+    },
   });
   return rows.map((d) => ({
     id: d.id,
@@ -181,8 +225,14 @@ export async function getMeetingDocuments(meetingId?: string): Promise<MeetingDo
 }
 
 export async function getMeetingResolutions(meetingId?: string): Promise<MeetingResolution[]> {
+  const organisationId = await getOrgId();
+  if (!organisationId) return [];
+
   const rows = await prisma.meetingResolution.findMany({
-    where: meetingId ? { meetingId } : undefined,
+    where: {
+      ...(meetingId ? { meetingId } : {}),
+      meeting: { entity: { organisationId } },
+    },
   });
   return rows.map((r) => ({
     id: r.id,
@@ -203,7 +253,13 @@ export async function getMeetingResolutions(meetingId?: string): Promise<Meeting
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getComplianceObligations(): Promise<ComplianceObligation[]> {
-  const rows = await prisma.complianceObligation.findMany({ orderBy: { dueDate: 'asc' } });
+  const organisationId = await getOrgId();
+  if (!organisationId) return [];
+
+  const rows = await prisma.complianceObligation.findMany({
+    where: { entity: { organisationId } },
+    orderBy: { dueDate: 'asc' },
+  });
   return rows.map((c) => ({
     id: c.id,
     entityId: c.entityId,
@@ -229,7 +285,13 @@ export async function getComplianceObligations(): Promise<ComplianceObligation[]
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getLicenses(): Promise<License[]> {
-  const rows = await prisma.license.findMany({ orderBy: { expiryDate: 'asc' } });
+  const organisationId = await getOrgId();
+  if (!organisationId) return [];
+
+  const rows = await prisma.license.findMany({
+    where: { entity: { organisationId } },
+    orderBy: { expiryDate: 'asc' },
+  });
   return rows.map((l) => ({
     id: l.id,
     entityId: l.entityId,
@@ -252,7 +314,12 @@ export async function getLicenses(): Promise<License[]> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getRegulatoryCapital(): Promise<RegulatoryCapital[]> {
-  const rows = await prisma.regulatoryCapital.findMany();
+  const organisationId = await getOrgId();
+  if (!organisationId) return [];
+
+  const rows = await prisma.regulatoryCapital.findMany({
+    where: { entity: { organisationId } },
+  });
   return rows.map((r) => ({
     id: r.id,
     entityId: r.entityId,
@@ -271,7 +338,12 @@ export async function getRegulatoryCapital(): Promise<RegulatoryCapital[]> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getBankAccounts(): Promise<BankAccount[]> {
-  const rows = await prisma.bankAccount.findMany();
+  const organisationId = await getOrgId();
+  if (!organisationId) return [];
+
+  const rows = await prisma.bankAccount.findMany({
+    where: { entity: { organisationId } },
+  });
   return rows.map((b) => ({
     id: b.id,
     entityId: b.entityId,
@@ -289,7 +361,11 @@ export async function getBankAccounts(): Promise<BankAccount[]> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getAlerts(): Promise<Alert[]> {
+  const organisationId = await getOrgId();
+  if (!organisationId) return [];
+
   const rows = await prisma.alert.findMany({
+    where: { entity: { organisationId } },
     orderBy: { createdAt: 'desc' },
     include: { entity: { select: { name: true } } },
   });
@@ -312,7 +388,13 @@ export async function getAlerts(): Promise<Alert[]> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getDocuments(): Promise<Document[]> {
-  const rows = await prisma.document.findMany({ orderBy: { uploadedAt: 'desc' } });
+  const organisationId = await getOrgId();
+  if (!organisationId) return [];
+
+  const rows = await prisma.document.findMany({
+    where: { entity: { organisationId } },
+    orderBy: { uploadedAt: 'desc' },
+  });
   return rows.map((d) => ({
     id: d.id,
     entityId: d.entityId,
@@ -334,6 +416,8 @@ export async function getDocuments(): Promise<Document[]> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getSubmissions(): Promise<Submission[]> {
+  // Submissions are not entity-scoped in the schema; access is gated at the
+  // API route level (requireAdmin). No org filter applied here.
   const rows = await (prisma as any).submission.findMany({ orderBy: { createdAt: 'desc' } });
   return rows.map((s: any) => ({
     id: s.id,

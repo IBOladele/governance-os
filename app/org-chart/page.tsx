@@ -1,17 +1,23 @@
 import Header from '@/components/layout/Header';
 import { getEntities } from '@/lib/db/queries';
 import { prisma } from '@/lib/prisma';
+import { getOrgContext } from '@/lib/org';
 import OrgChartPageClient from './OrgChartPageClient';
 
 export const dynamic = 'force-dynamic';
 
 export default async function OrgChartPage() {
+  const orgCtx = await getOrgContext();
+  const organisationId = orgCtx?.organisationId;
+
   const [entities, shareholders] = await Promise.all([
     getEntities(),
-    prisma.shareholder.findMany({
-      where: { entityOwnerId: { not: null }, isActive: true },
-      select: { entityId: true, entityOwnerId: true, percentageOwned: true, shareClass: true },
-    }),
+    organisationId
+      ? prisma.shareholder.findMany({
+          where: { entityOwnerId: { not: null }, isActive: true, entity: { organisationId } },
+          select: { entityId: true, entityOwnerId: true, percentageOwned: true, shareClass: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   // Map: entityId → ownership info (who owns it and how much)

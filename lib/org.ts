@@ -15,13 +15,22 @@ import { authOptions } from '@/lib/auth/config';
  * Returns the organisationId from the current session, or null if not
  * authenticated / auth is disabled.
  *
- * When AUTH_ENABLED is false AND we are NOT in production, we fall back to the
- * default organisation so local dev works without logging in.
- * In production, auth is always enforced regardless of the env var.
+ * In production (NODE_ENV=production), auth is ALWAYS enforced — session is
+ * required regardless of the AUTH_ENABLED env var.
+ *
+ * In non-production environments, setting AUTH_ENABLED=false (the default)
+ * bypasses auth and returns the seed org ID so local dev works without login.
+ * You must explicitly set AUTH_ENABLED=true to enable auth in development.
  */
 export async function getOrgId(): Promise<string | null> {
-  const isDev = process.env.NODE_ENV !== 'production';
-  if (isDev && process.env.AUTH_ENABLED !== 'true') {
+  // Production: always require a real session — no bypass allowed
+  if (process.env.NODE_ENV === 'production') {
+    const session = await getServerSession(authOptions);
+    return session?.user?.organisationId || null;
+  }
+
+  // Non-production: bypass if AUTH_ENABLED is not explicitly set to 'true'
+  if (process.env.AUTH_ENABLED !== 'true') {
     return 'org-default-001';
   }
 
@@ -39,8 +48,19 @@ export async function getOrgContext(): Promise<{
   role: string;
   userId: string;
 } | null> {
-  const isDev = process.env.NODE_ENV !== 'production';
-  if (isDev && process.env.AUTH_ENABLED !== 'true') {
+  // Production: always require a real session — no bypass allowed
+  if (process.env.NODE_ENV === 'production') {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.organisationId) return null;
+    return {
+      organisationId: session.user.organisationId,
+      role:           session.user.role ?? 'viewer',
+      userId:         session.user.id ?? '',
+    };
+  }
+
+  // Non-production: bypass if AUTH_ENABLED is not explicitly set to 'true'
+  if (process.env.AUTH_ENABLED !== 'true') {
     return { organisationId: 'org-default-001', role: 'super_admin', userId: 'usr-super-001' };
   }
 

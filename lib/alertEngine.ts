@@ -4,8 +4,9 @@
  * Scans compliance obligations, licenses, regulatory capital, and board meetings
  * to generate proactive alerts at 90/60/30-day thresholds and on breach.
  *
- * Call generateAlerts() from the /api/alerts/generate route or a cron job.
+ * Call generateAlerts(organisationId) from /api/alerts/generate (authenticated).
  * Deduplicates by (entityId, category, relatedId) so re-running is safe.
+ * All queries are scoped to the provided organisationId to prevent cross-tenant leaks.
  */
 
 import prisma from '@/lib/prisma';
@@ -25,12 +26,16 @@ interface AlertCandidate {
   relatedId: string;
 }
 
-export async function generateAlerts(): Promise<{ created: number; skipped: number }> {
+/** Org-scoped filter for models that link to Entity */
+const orgFilter = (organisationId: string) => ({ entity: { organisationId } });
+
+export async function generateAlerts(organisationId: string): Promise<{ created: number; skipped: number }> {
   const candidates: AlertCandidate[] = [];
+  const orgScope = orgFilter(organisationId);
 
   // ── Compliance obligations ─────────────────────────────────────────────────
   const obligations = await prisma.complianceObligation.findMany({
-    where: { status: { in: ['pending' as any, 'overdue' as any] } },
+    where: { status: { in: ['pending' as any, 'overdue' as any] }, ...orgScope },
   });
 
   for (const ob of obligations) {
@@ -76,7 +81,7 @@ export async function generateAlerts(): Promise<{ created: number; skipped: numb
 
   // ── Licenses ──────────────────────────────────────────────────────────────
   const licenses = await prisma.license.findMany({
-    where: { status: { in: ['active' as any, 'pending_renewal' as any] } },
+    where: { status: { in: ['active' as any, 'pending_renewal' as any] }, ...orgScope },
   });
 
   for (const lic of licenses) {
@@ -122,7 +127,9 @@ export async function generateAlerts(): Promise<{ created: number; skipped: numb
   }
 
   // ── Regulatory capital ─────────────────────────────────────────────────────
-  const capitals = await prisma.regulatoryCapital.findMany();
+  const capitals = await prisma.regulatoryCapital.findMany({
+    where: { ...orgScope },
+  });
   for (const cap of capitals) {
     const ratio = cap.minimumRequired > 0 ? cap.currentBalance / cap.minimumRequired : 1;
     if (ratio < 1) {
@@ -148,7 +155,7 @@ export async function generateAlerts(): Promise<{ created: number; skipped: numb
 
   // ── Board meetings ─────────────────────────────────────────────────────────
   const meetings = await prisma.boardMeeting.findMany({
-    where: { status: 'scheduled' as any },
+    where: { status: 'scheduled' as any, ...orgScope },
   });
   for (const m of meetings) {
     const days = daysUntil(m.meetingDate);
@@ -247,11 +254,12 @@ export async function computeHealthScore(entityId: string): Promise<number> {
   return Math.round(score);
 }
 
-export async function updateAllHealthScores(): Promise<void> {
-  // Use $executeRaw so this works regardless of whether 'prisma generate'
-  // has been re-run after the migration that added the healthScore column.
+export async function updateAllHealthScores(organisationId: string): Promise<void> {
+  // Scope entity selection to the provided org to prevent cross-tenant health score updates
   const entities = await prisma.$queryRaw<Array<{ id: string }>>`
-    SELECT id FROM "entities" WHERE status IN ('active', 'dormant')
+    SELECT id FROM "entities"
+    WHERE status IN ('active', 'dormant')
+    AND "organisationId" = ${organisationId}
   `;
   for (const e of entities) {
     try {

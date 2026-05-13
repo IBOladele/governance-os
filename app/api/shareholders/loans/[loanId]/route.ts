@@ -1,18 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/config';
+import { requireAuth } from '@/lib/auth/require';
 import { prisma } from '@/lib/prisma';
 
-function forbidden() {
-  return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+/** Fetch the loan and verify it belongs to the caller's org. */
+async function fetchAndVerify(loanId: string, organisationId: string) {
+  return prisma.shareholderLoan.findFirst({
+    where: {
+      id: loanId,
+      entity: { organisationId },
+    },
+  });
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ loanId: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (session.user.role !== 'super_admin') return forbidden();
+  const auth = await requireAuth(['super_admin', 'admin']);
+  if (!auth.ok) return auth.response;
+  const { ctx } = auth;
 
   const { loanId } = await params;
+
+  const loan = await fetchAndVerify(loanId, ctx.organisationId);
+  if (!loan) {
+    return NextResponse.json({ error: 'Loan not found' }, { status: 404 });
+  }
+
   const body = await req.json();
 
   const updated = await prisma.shareholderLoan.update({
@@ -34,11 +45,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ loan
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ loanId: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (session.user.role !== 'super_admin') return forbidden();
+  const auth = await requireAuth(['super_admin', 'admin']);
+  if (!auth.ok) return auth.response;
+  const { ctx } = auth;
 
   const { loanId } = await params;
+
+  const loan = await fetchAndVerify(loanId, ctx.organisationId);
+  if (!loan) {
+    return NextResponse.json({ error: 'Loan not found' }, { status: 404 });
+  }
+
   await prisma.shareholderLoan.delete({ where: { id: loanId } });
   return NextResponse.json({ ok: true });
 }

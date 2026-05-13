@@ -223,20 +223,33 @@ export default function EntitiesClient({ entities, complianceObligations, licens
         <div className="bg-white rounded-xl border border-gray-100 p-6">
           <h2 className="font-semibold text-gray-900 mb-4">Corporate Structure</h2>
           <div className="font-mono text-sm text-gray-700 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-indigo-500" />
-              <span className="font-semibold text-gray-900">EntityOS Holdings Pte. Ltd. (HoldCo — Singapore)</span>
-            </div>
-            {entities.filter(e => e.parentEntityId === 'ent-001').map((e, i, arr) => (
-              <div key={e.id} className="ml-6 flex items-center gap-2 text-gray-600">
-                <span className="text-gray-300">{i === arr.length - 1 ? '└' : '├'}</span>
-                <span>{getFlagEmoji(e.country)}</span>
-                <Link href={`/entities/${e.id}`} className="hover:text-indigo-600 transition-colors">
-                  {e.name}
-                </Link>
-                <span className="text-gray-300">({e.country})</span>
-              </div>
-            ))}
+            {/* Dynamically find root entities (no parent) */}
+            {entities.filter(e => !e.parentEntityId).map(rootEntity => {
+              const children = entities.filter(e => e.parentEntityId === rootEntity.id);
+              return (
+                <div key={rootEntity.id}>
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-indigo-500" />
+                    <Link href={`/entities/${rootEntity.id}`} className="font-semibold text-gray-900 hover:text-indigo-600 transition-colors">
+                      {rootEntity.name} ({rootEntity.country})
+                    </Link>
+                  </div>
+                  {children.map((e, i, arr) => (
+                    <div key={e.id} className="ml-6 flex items-center gap-2 text-gray-600">
+                      <span className="text-gray-300">{i === arr.length - 1 ? '└' : '├'}</span>
+                      <span>{getFlagEmoji(e.country)}</span>
+                      <Link href={`/entities/${e.id}`} className="hover:text-indigo-600 transition-colors">
+                        {e.name}
+                      </Link>
+                      <span className="text-gray-300">({e.country})</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+            {entities.filter(e => !e.parentEntityId).length === 0 && (
+              <p className="text-gray-400 text-sm italic">No entities yet.</p>
+            )}
           </div>
         </div>
       </div>

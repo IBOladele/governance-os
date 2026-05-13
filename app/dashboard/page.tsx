@@ -1,5 +1,6 @@
 import Header from '@/components/layout/Header';
 import prisma from '@/lib/prisma';
+import { getOrgContext } from '@/lib/org';
 import { formatCurrency, formatDate, getStatusColor, getFlagEmoji, daysUntil } from '@/lib/utils';
 import {
   Building2, AlertTriangle, Shield, TrendingUp,
@@ -10,7 +11,22 @@ import Link from 'next/link';
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  // Fetch data in parallel
+  const orgCtx = await getOrgContext();
+  const organisationId = orgCtx?.organisationId;
+
+  // If no org context (unauthenticated in prod), render empty state
+  if (!organisationId) {
+    return (
+      <div>
+        <Header title="Global Control Tower" subtitle="EntityOS" />
+        <div className="px-8 py-20 text-center text-gray-400">Loading…</div>
+      </div>
+    );
+  }
+
+  const orgScope  = { entity: { organisationId } };
+
+  // Fetch data in parallel, all scoped to the caller's organisation
   const [
     entities,
     complianceObligations,
@@ -18,16 +34,16 @@ export default async function DashboardPage() {
     regulatoryCapital,
     alerts,
     boardMeetings,
+    allEntities,
   ] = await Promise.all([
-    prisma.entity.findMany({ where: { status: 'active' } }),
-    prisma.complianceObligation.findMany(),
-    prisma.license.findMany(),
-    prisma.regulatoryCapital.findMany(),
-    prisma.alert.findMany(),
-    prisma.boardMeeting.findMany(),
+    prisma.entity.findMany({ where: { status: 'active', organisationId } }),
+    prisma.complianceObligation.findMany({ where: { ...orgScope } }),
+    prisma.license.findMany({ where: { ...orgScope } }),
+    prisma.regulatoryCapital.findMany({ where: { ...orgScope } }),
+    prisma.alert.findMany({ where: { ...orgScope } }),
+    prisma.boardMeeting.findMany({ where: { ...orgScope } }),
+    prisma.entity.findMany({ where: { organisationId } }),
   ]);
-
-  const allEntities = await prisma.entity.findMany();
 
   // Compute KPIs
   const activeEntities = entities.length;
@@ -346,10 +362,9 @@ export default async function DashboardPage() {
             <Link href="/alerts" className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors">
               <AlertTriangle className="w-4 h-4" /> View All Alerts
             </Link>
-            <a href="/api/alerts/generate" target="_blank"
-              className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors">
-              <Zap className="w-4 h-4" /> Run Alert Engine
-            </a>
+            <Link href="/alerts" className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors">
+              <Zap className="w-4 h-4" /> Alert Centre
+            </Link>
             <Link href="/admin/submissions" className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors">
               <Clock className="w-4 h-4" /> Review Submissions
             </Link>

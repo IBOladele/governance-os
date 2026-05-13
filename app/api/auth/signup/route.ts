@@ -6,10 +6,30 @@
  * next-auth credentials after a 201 response.
  *
  * Body: { orgName, orgSlug, name, email, password }
+ *
+ * Rate limiting: simple in-memory per-IP throttle (5 attempts / 15 min).
+ * For distributed deployments, replace with Upstash Redis rate limiter.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { hash } from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+
+// ── Simple in-process rate limiter (per Railway instance) ─────────────────
+// For production at scale, replace with an Upstash Redis or similar store.
+const WINDOW_MS   = 15 * 60 * 1000; // 15 minutes
+const MAX_HITS    = 5;
+const rateMap     = new Map<string, { count: number; resetAt: number }>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateMap.get(ip);
+  if (!entry || entry.resetAt < now) {
+    rateMap.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > MAX_HITS;
+}
 
 function toSlug(str: string) {
   return str
@@ -22,6 +42,15 @@ function toSlug(str: string) {
 }
 
 export async function POST(req: NextRequest) {
+  // Rate limiting — reject if too many signup attempts from the same IP
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  if (isRateLimited(ip)) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429 },
+    );
+  }
+
   try {
     const body = await req.json();
     const { orgName, orgSlug, name, email, password } = body;
@@ -41,7 +70,12 @@ export async function POST(req: NextRequest) {
     // ── Check uniqueness ───────────────────────────────────────────────────
     const existingUser = await prisma.user.findUnique({ where: { email: normalEmail } });
     if (existingUser) {
-      return NextResponse.json({ error: 'An account with that email already exists.' }, { status: 409 });
+      // Return a generic message to prevent email enumeration (HIGH-5).
+      // An attacker cannot distinguish "email taken" from "validation failed".
+      return NextResponse.json(
+        { error: 'Unable to create an account with that email. If you already have an account, try signing in.' },
+        { status: 409 },
+      );
     }
 
     // Ensure slug is unique — append random suffix if taken

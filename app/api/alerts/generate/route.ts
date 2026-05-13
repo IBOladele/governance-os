@@ -7,12 +7,15 @@ export async function POST() {
   const auth = await requireAdmin();
   if (!auth.ok) return auth.response;
 
+  const { ctx } = auth;
+
   let alertResult = { created: 0, skipped: 0 };
   let healthError: string | null = null;
   let alertError:  string | null = null;
 
   try {
-    alertResult = await generateAlerts();
+    // Scope alert generation to the caller's organisation
+    alertResult = await generateAlerts(ctx.organisationId);
   } catch (err) {
     const msg = err instanceof Error ? `${err.message}\n${err.stack}` : String(err);
     console.error('[alerts/generate] generateAlerts failed:', msg);
@@ -20,7 +23,8 @@ export async function POST() {
   }
 
   try {
-    await updateAllHealthScores();
+    // Scope health score updates to the caller's organisation
+    await updateAllHealthScores(ctx.organisationId);
   } catch (err) {
     const msg = err instanceof Error ? `${err.message}\n${err.stack}` : String(err);
     console.error('[alerts/generate] updateAllHealthScores failed:', msg);
