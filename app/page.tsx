@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import {
   Building2, Shield, Calendar, Users, FileText, TrendingUp,
-  Globe, ChevronRight, CheckCircle, ArrowRight, BarChart3,
-  Lock, Zap, GitBranch,
+  Globe, ChevronRight, CheckCircle, ArrowRight,
+  Lock, GitBranch,
 } from 'lucide-react';
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ const STEPS = [
   {
     num: '01',
     title: 'Create your organisation',
-    desc: 'Sign up in under two minutes. Add your org name and your first account. No credit card required to start.',
+    desc: 'Sign up in under two minutes. Add your org name and your first account.',
   },
   {
     num: '02',
@@ -66,46 +66,6 @@ const STEPS = [
     title: 'Invite your team',
     desc: 'Add legal, finance, and compliance colleagues with the right role. Everyone sees only what they need.',
   },
-];
-
-const PLANS = [
-  {
-    name: 'Starter',
-    price: 'Free',
-    sub: 'forever',
-    desc: 'For small groups getting organised.',
-    features: ['Up to 5 entities', '3 team members', 'Compliance tracker', 'Board meetings', 'Key dates calendar'],
-    cta: 'Get started free',
-    href: '/signup',
-    highlight: false,
-  },
-  {
-    name: 'Pro',
-    price: '$199',
-    sub: 'per month',
-    desc: 'For growing groups with real complexity.',
-    features: ['Up to 50 entities', 'Unlimited members', 'Document vault', 'Regulatory capital', 'Shareholding register', 'Audit log', 'Slack alerts'],
-    cta: 'Start free trial',
-    href: '/signup?plan=pro',
-    highlight: true,
-  },
-  {
-    name: 'Enterprise',
-    price: 'Custom',
-    sub: 'contact us',
-    desc: 'For regulated institutions and fund groups.',
-    features: ['Unlimited entities', 'SSO / SAML', 'Dedicated support', 'Custom data retention', 'SLA guarantee', 'On-prem option'],
-    cta: 'Talk to us',
-    href: 'mailto:hello@governanceos.app',
-    highlight: false,
-  },
-];
-
-const STATS = [
-  { value: '150+', label: 'Jurisdictions supported' },
-  { value: '35+', label: 'Entity types' },
-  { value: '99.9%', label: 'Uptime SLA' },
-  { value: 'SOC 2', label: 'Compliant infrastructure' },
 ];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -125,9 +85,8 @@ export default function LandingPage() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-7 text-sm text-gray-500">
-            <a href="#features" className="hover:text-gray-900 transition-colors">Features</a>
+            <a href="#features"    className="hover:text-gray-900 transition-colors">Features</a>
             <a href="#how-it-works" className="hover:text-gray-900 transition-colors">How it works</a>
-            <a href="#pricing" className="hover:text-gray-900 transition-colors">Pricing</a>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -150,7 +109,7 @@ export default function LandingPage() {
 
         <div className="relative max-w-6xl mx-auto px-6 pt-24 pb-28 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium mb-8">
-            <Zap className="w-3.5 h-3.5" />
+            <Shield className="w-3.5 h-3.5" />
             Corporate governance — finally under control
           </div>
 
@@ -167,15 +126,13 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/signup"
               className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl transition-colors shadow-lg shadow-indigo-900/40 text-sm">
-              Start for free <ArrowRight className="w-4 h-4" />
+              Get started <ArrowRight className="w-4 h-4" />
             </Link>
             <Link href="/login"
               className="inline-flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium rounded-xl transition-colors text-sm">
               Sign in to your account
             </Link>
           </div>
-
-          <p className="mt-6 text-xs text-slate-500">No credit card required · 5 entities free forever</p>
         </div>
 
         {/* product mockup */}
@@ -188,7 +145,7 @@ export default function LandingPage() {
                 <div className="w-3 h-3 rounded-full bg-slate-600" />
               </div>
               <div className="flex-1 mx-4 bg-slate-700/60 rounded-md h-6 flex items-center px-3">
-                <span className="text-xs text-slate-400">app.governanceos.com/dashboard</span>
+                <span className="text-xs text-slate-400">app.entityos.io/dashboard</span>
               </div>
             </div>
             <div className="flex" style={{ minHeight: 300 }}>
@@ -227,9 +184,9 @@ export default function LandingPage() {
                   <div className="bg-slate-700/30 rounded-xl border border-slate-700 p-4">
                     <p className="text-xs font-semibold text-slate-400 mb-3">Entity health</p>
                     {[
-                      { name: 'ML Holdings UK',     score: 94, color: 'bg-emerald-500' },
-                      { name: 'ML Finance Ltd',     score: 71, color: 'bg-yellow-500' },
-                      { name: 'ML Cyprus Holding',  score: 88, color: 'bg-emerald-500' },
+                      { name: 'ML Holdings UK',    score: 94, color: 'bg-emerald-500' },
+                      { name: 'ML Finance Ltd',    score: 71, color: 'bg-yellow-500' },
+                      { name: 'ML Cyprus Holding', score: 88, color: 'bg-emerald-500' },
                     ].map(e => (
                       <div key={e.name} className="mb-2 last:mb-0">
                         <div className="flex justify-between mb-1">
@@ -246,18 +203,6 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ── Stats ───────────────────────────────────────────────────────────── */}
-      <section className="bg-slate-950 border-b border-slate-800">
-        <div className="max-w-6xl mx-auto px-6 py-10 grid grid-cols-2 md:grid-cols-4 gap-8">
-          {STATS.map(s => (
-            <div key={s.label} className="text-center">
-              <p className="text-3xl font-bold text-white">{s.value}</p>
-              <p className="text-sm text-slate-500 mt-1">{s.label}</p>
-            </div>
-          ))}
         </div>
       </section>
 
@@ -309,57 +254,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Pricing ─────────────────────────────────────────────────────────── */}
-      <section id="pricing" className="py-24 bg-white">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <p className="text-xs font-semibold text-indigo-600 uppercase tracking-widest mb-3">Pricing</p>
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Simple, transparent pricing</h2>
-            <p className="text-lg text-gray-500">Start free. Scale as your group grows.</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 items-start max-w-5xl mx-auto">
-            {PLANS.map(plan => (
-              <div key={plan.name}
-                className={`rounded-2xl p-8 border transition-all ${plan.highlight
-                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-2xl shadow-indigo-100 scale-105'
-                  : 'bg-white border-gray-100 shadow-sm hover:shadow-md'}`}>
-                <p className={`text-xs font-semibold uppercase tracking-widest mb-1 ${plan.highlight ? 'text-indigo-200' : 'text-indigo-600'}`}>
-                  {plan.name}
-                </p>
-                <div className="flex items-end gap-1 mb-1">
-                  <span className={`text-4xl font-black ${plan.highlight ? 'text-white' : 'text-gray-900'}`}>
-                    {plan.price}
-                  </span>
-                  {plan.sub !== 'forever' && plan.sub !== 'contact us' && (
-                    <span className={`text-sm mb-2 ${plan.highlight ? 'text-indigo-200' : 'text-gray-400'}`}>
-                      /{plan.sub}
-                    </span>
-                  )}
-                </div>
-                <p className={`text-sm mb-6 ${plan.highlight ? 'text-indigo-200' : 'text-gray-500'}`}>{plan.desc}</p>
-
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map(f => (
-                    <li key={f} className="flex items-center gap-2.5 text-sm">
-                      <CheckCircle className={`w-4 h-4 shrink-0 ${plan.highlight ? 'text-indigo-200' : 'text-emerald-500'}`} />
-                      <span className={plan.highlight ? 'text-indigo-100' : 'text-gray-600'}>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link href={plan.href}
-                  className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-colors ${plan.highlight
-                    ? 'bg-white text-indigo-600 hover:bg-indigo-50'
-                    : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
-                  {plan.cta} <ChevronRight className="w-4 h-4" />
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── CTA ─────────────────────────────────────────────────────────────── */}
       <section className="py-24 bg-slate-950">
         <div className="max-w-3xl mx-auto px-6 text-center">
@@ -367,14 +261,19 @@ export default function LandingPage() {
             Take control of your group structure
           </h2>
           <p className="text-lg text-slate-400 mb-10">
-            Join governance and compliance teams who use EntityOS to stay ahead of filings,
-            regulators, and board deadlines — across every entity, every jurisdiction.
+            Built for governance and compliance teams managing entities across multiple
+            jurisdictions. Every filing, every deadline, every director — in one place.
           </p>
-          <Link href="/signup"
-            className="inline-flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-indigo-900/30 text-sm">
-            Get started for free <ArrowRight className="w-4 h-4" />
-          </Link>
-          <p className="mt-4 text-xs text-slate-600">No credit card · 5 entities free forever · Cancel anytime</p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link href="/signup"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-indigo-900/30 text-sm">
+              Get started <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link href="/login"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium rounded-xl transition-colors text-sm">
+              Sign in
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -398,17 +297,16 @@ export default function LandingPage() {
               <Link href="/login"    className="hover:text-slate-300 transition-colors">Sign in</Link>
               <Link href="/signup"   className="hover:text-slate-300 transition-colors">Sign up</Link>
               <a href="#features"    className="hover:text-slate-300 transition-colors">Features</a>
-              <a href="#pricing"     className="hover:text-slate-300 transition-colors">Pricing</a>
-              <a href="mailto:hello@governanceos.app" className="hover:text-slate-300 transition-colors">Contact</a>
+              <a href="#how-it-works" className="hover:text-slate-300 transition-colors">How it works</a>
               <Link href="/dashboard" className="hover:text-slate-300 transition-colors">Dashboard</Link>
             </div>
           </div>
 
           <div className="mt-10 pt-6 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-xs text-slate-600">© {new Date().getFullYear()} EntityOS. All rights reserved.</p>
-            <div className="flex items-center gap-1.5 text-xs text-slate-600">
-              <BarChart3 className="w-3.5 h-3.5" />
-              <span>99.9% uptime · SOC 2 compliant infrastructure</span>
+            <div className="flex items-center gap-4 text-xs text-slate-600">
+              <CheckCircle className="w-3.5 h-3.5" />
+              <span>Multi-tenant · Role-based access · Full audit log</span>
             </div>
           </div>
         </div>

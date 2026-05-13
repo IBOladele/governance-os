@@ -156,8 +156,8 @@ async function main() {
     // USERS
     // ──────────────────────────────────────────────────────────────────────
     console.log('Seeding users...');
-    // Wipe all users so stale rows with old emails don't survive the upsert
-    await prisma.user.deleteMany({});
+    // Only wipe the known seed user — never delete other orgs' users
+    await prisma.user.deleteMany({ where: { id: 'usr-super-001' } });
     const users = [
       { id: 'usr-super-001', name: 'Ibrahim Oladele', email: 'ibrahim@monsterlabs.org', role: 'super_admin' as const, department: 'Executive', title: 'CEO', password: '$2b$12$L2eaActHHXheRsn22PXLROHXOyD9xKyEwdoXLE8EjHOqLv7xpDWv2' },
     ];
@@ -234,8 +234,8 @@ async function main() {
     // DIRECTORS
     // ──────────────────────────────────────────────────────────────────────
     console.log('Seeding directors...');
-    // Wipe existing directors to avoid stale rows after re-parsing
-    await prisma.director.deleteMany({});
+    // Only wipe directors belonging to the seed org — never delete other orgs' directors
+    await prisma.director.deleteMany({ where: { entity: { organisationId: defaultOrg.id } } });
     let dirCount = 0;
     for (const e of data.entities) {
       let idx = 0;
@@ -265,7 +265,8 @@ async function main() {
     // LICENSES
     // ──────────────────────────────────────────────────────────────────────
     console.log('Seeding licenses...');
-    await prisma.license.deleteMany({});
+    // Only wipe licenses belonging to the seed org
+    await prisma.license.deleteMany({ where: { entity: { organisationId: defaultOrg.id } } });
     let licCount = 0;
     for (const e of data.entities) {
       let idx = 0;
@@ -298,7 +299,8 @@ async function main() {
     // BOARD MEETINGS
     // ──────────────────────────────────────────────────────────────────────
     console.log('Seeding board meetings...');
-    await prisma.boardMeeting.deleteMany({});
+    // Only wipe meetings belonging to the seed org
+    await prisma.boardMeeting.deleteMany({ where: { entity: { organisationId: defaultOrg.id } } });
     for (const m of data.meetings) {
       // Enrich notes with calendar metadata
       const notesParts: string[] = [];
