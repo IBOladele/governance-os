@@ -3,7 +3,8 @@
 import { signIn, useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Globe, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import Link from 'next/link';
+import { Globe, Lock, AlertCircle, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 
 const ERROR_MESSAGES: Record<string, string> = {
   OAuthSignin:            'Could not initiate Okta sign-in. Please try again.',
@@ -11,6 +12,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   OAuthAccountNotLinked:  'This Okta account is not yet provisioned in EntityOS.',
   SessionRequired:        'Please sign in to access EntityOS.',
   CredentialsSignin:      'Invalid email or password.',
+  EmailNotVerified:       'Please verify your email address before signing in. Check your inbox for the verification link.',
+  VerifyFailed:           'That verification link is invalid or has expired. Please sign up again or contact support.',
   default:                'An authentication error occurred. Please try again.',
 };
 
@@ -19,6 +22,8 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
+
+  const verified = searchParams.get('verified') === '1';
 
   const [email, setEmail]         = useState('');
   const [password, setPassword]   = useState('');
@@ -71,8 +76,16 @@ export default function LoginPage() {
 
           {/* Body */}
           <div className="px-8 py-8 space-y-5">
+            {/* Email verified success banner */}
+            {verified && (
+              <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl p-4">
+                <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+                <p className="text-sm text-green-700">Email verified! You can now sign in.</p>
+              </div>
+            )}
+
             {/* URL-level error (from NextAuth redirect) */}
-            {error && (
+            {error && !verified && (
               <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
                 <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                 <p className="text-sm text-red-700">{ERROR_MESSAGES[error] ?? ERROR_MESSAGES.default}</p>
@@ -136,6 +149,15 @@ export default function LoginPage() {
                 ) : 'Sign in'}
               </button>
             </form>
+
+            <div className="flex items-center justify-between text-xs text-gray-400">
+              <Link href="/forgot-password" className="hover:text-indigo-600 transition-colors">
+                Forgot password?
+              </Link>
+              <Link href="/signup" className="hover:text-indigo-600 transition-colors">
+                Create account
+              </Link>
+            </div>
 
             {/* Footer note */}
             <div className="flex items-start gap-3 bg-gray-50 rounded-xl p-4">

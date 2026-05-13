@@ -26,6 +26,10 @@ declare module 'next-auth/jwt' {
     title?: string;
     organisationId?: string;
     organisationName?: string;
+    /** First 8 chars of bcrypt hash — changes when password changes, revoking session */
+    pwPrefix?: string;
+    /** Timestamp of last DB-level session validity check */
+    pwCheckAt?: number;
   }
 }
 
@@ -69,9 +73,17 @@ const providers: NextAuthOptions['providers'] = [
 
       if (!user || !user.isActive || !user.password) return null;
 
+      // ── Email verification gate ──────────────────────────────────────────
+      if (!user.emailVerified) {
+        // Throw a named error so the login page can show the right message.
+        // NextAuth encodes this as ?error=EmailNotVerified in the redirect URL.
+        throw new Error('EmailNotVerified');
+      }
+
       const valid = await compare(credentials.password, user.password);
       if (!valid) return null;
 
+      // ── Update last-login timestamp ──────────────────────────────────────
       await prisma.user.update({
         where: { id: user.id },
         data:  { lastLoginAt: new Date() },
@@ -88,6 +100,8 @@ const providers: NextAuthOptions['providers'] = [
         title:            user.title ?? '',
         organisationId:   primaryMembership?.organisationId ?? '',
         organisationName: primaryMembership?.organisation?.name ?? '',
+        // Include password prefix so we can detect password changes in JWT callback
+        pwPrefix:         user.password.slice(0, 8),
       };
     },
   }),
@@ -110,7 +124,7 @@ export const authOptions: NextAuthOptions = {
 
   session: {
     strategy: 'jwt',
-    maxAge: 8 * 60 * 60,
+    maxAge: 8 * 60 * 60, // 8 hours
   },
 
   pages: {
@@ -119,8 +133,8 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    async jwt({ token, user, account, profile }) {
-      // Credentials sign-in — user object carries our custom fields
+    async jwt({ token, user, account, trigger, profile }) {
+      // ── New credentials sign-in ──────────────────────────────────────────
       if (user && !account?.provider?.startsWith('okta')) {
         const u = user as any;
         token.userId           = u.id;
@@ -129,10 +143,12 @@ export const authOptions: NextAuthOptions = {
         token.title            = u.title;
         token.organisationId   = u.organisationId;
         token.organisationName = u.organisationName;
+        token.pwPrefix         = u.pwPrefix;
+        token.pwCheckAt        = Date.now();
         return token;
       }
 
-      // Okta sign-in
+      // ── Okta sign-in ─────────────────────────────────────────────────────
       if (account && profile) {
         const groups: string[] = (profile as any).groups ?? [];
         const groupRole = resolveRoleFromGroups(groups);
@@ -156,9 +172,43 @@ export const authOptions: NextAuthOptions = {
             token.title            = appUser.title ?? '';
             token.organisationId   = membership?.organisationId ?? '';
             token.organisationName = membership?.organisation?.name ?? '';
+            token.pwCheckAt        = Date.now();
             await prisma.user.update({ where: { id: appUser.id }, data: { lastLoginAt: new Date() } });
             token.role = groupRole ?? membership?.role ?? appUser.role ?? 'viewer';
           }
+        }
+        return token;
+      }
+
+      // ── Session revocation check (runs on every token refresh) ───────────
+      // Re-validates the session against the DB at most once per minute.
+      // Revokes the session if the user is deactivated or changed their password.
+      if (!trigger && token.userId) {
+        const lastCheck = token.pwCheckAt ?? 0;
+        const now = Date.now();
+        const CHECK_INTERVAL = 60_000; // 1 minute
+
+        if (now - lastCheck > CHECK_INTERVAL) {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.userId },
+            select: { password: true, isActive: true },
+          });
+
+          if (!dbUser || !dbUser.isActive) {
+            // User deactivated — destroy the session by stripping the token
+            return { sub: token.sub } as any;
+          }
+
+          if (
+            token.pwPrefix &&
+            dbUser.password &&
+            dbUser.password.slice(0, 8) !== token.pwPrefix
+          ) {
+            // Password changed — revoke this session
+            return { sub: token.sub } as any;
+          }
+
+          token.pwCheckAt = now;
         }
       }
 
@@ -175,6 +225,30 @@ export const authOptions: NextAuthOptions = {
         session.user.organisationName = token.organisationName ?? '';
       }
       return session;
+    },
+
+    async signIn({ user, account }) {
+      // ── Auth event audit log ──────────────────────────────────────────────
+      // Runs after authorize() succeeds. We write the LOGIN event here
+      // because this callback has access to the resolved user object.
+      try {
+        const u = user as any;
+        const userId = u.id ?? u.userId;
+        if (userId) {
+          await prisma.auditLog.create({
+            data: {
+              action:    'LOGIN',
+              tableName: 'users',
+              recordId:  userId,
+              userId,
+              notes: `Sign-in via ${account?.provider ?? 'credentials'}`,
+            },
+          });
+        }
+      } catch {
+        // Never block sign-in over an audit log failure
+      }
+      return true;
     },
   },
 

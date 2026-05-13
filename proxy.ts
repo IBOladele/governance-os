@@ -6,10 +6,13 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
-const AUTH_ENABLED = process.env.AUTH_ENABLED === 'true';
+// In production auth is always enforced regardless of the AUTH_ENABLED var.
+// In development/staging, set AUTH_ENABLED=true to opt in to auth locally.
+const AUTH_ENFORCED =
+  process.env.NODE_ENV === 'production' || process.env.AUTH_ENABLED === 'true';
 
 export async function proxy(req: NextRequest) {
-  if (!AUTH_ENABLED) return NextResponse.next();
+  if (!AUTH_ENFORCED) return NextResponse.next();
 
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
@@ -34,6 +37,6 @@ export const config = {
   matcher: [
     // Exclude public routes explicitly — NOT using 'public' as a substring match
     // to avoid blocking paths that happen to contain the word "public" (LOW-1 fix)
-    '/((?!$|login|signup|api/auth|_next/static|_next/image|favicon\\.ico|uploads/).*)',
+    '/((?!$|login|signup|forgot-password|reset-password|api/auth|_next/static|_next/image|favicon\\.ico|uploads/).*)',
   ],
 };

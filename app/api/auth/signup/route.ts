@@ -2,34 +2,17 @@
  * POST /api/auth/signup
  *
  * Creates a new Organisation + User (super_admin) + OrganisationMember
- * in a single transaction. The caller should immediately sign in via
- * next-auth credentials after a 201 response.
+ * in a single transaction. After creation a verification email is sent —
+ * the user must verify before they can sign in.
  *
  * Body: { orgName, orgSlug, name, email, password }
- *
- * Rate limiting: simple in-memory per-IP throttle (5 attempts / 15 min).
- * For distributed deployments, replace with Upstash Redis rate limiter.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { hash } from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
-
-// ── Simple in-process rate limiter (per Railway instance) ─────────────────
-// For production at scale, replace with an Upstash Redis or similar store.
-const WINDOW_MS   = 15 * 60 * 1000; // 15 minutes
-const MAX_HITS    = 5;
-const rateMap     = new Map<string, { count: number; resetAt: number }>();
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateMap.get(ip);
-  if (!entry || entry.resetAt < now) {
-    rateMap.set(ip, { count: 1, resetAt: now + WINDOW_MS });
-    return false;
-  }
-  entry.count++;
-  return entry.count > MAX_HITS;
-}
+import { createEmailVerificationToken } from '@/lib/auth/tokens';
+import { sendEmail, verifyEmailTemplate } from '@/lib/email';
+import { isRateLimited } from '@/lib/ratelimit';
 
 function toSlug(str: string) {
   return str
@@ -42,9 +25,8 @@ function toSlug(str: string) {
 }
 
 export async function POST(req: NextRequest) {
-  // Rate limiting — reject if too many signup attempts from the same IP
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-  if (isRateLimited(ip)) {
+  if (await isRateLimited(`signup:${ip}`, 5, 15 * 60 * 1000)) {
     return NextResponse.json(
       { error: 'Too many requests. Please try again later.' },
       { status: 429 },
@@ -119,8 +101,22 @@ export async function POST(req: NextRequest) {
       return { org, user: { id: user.id, email: user.email, name: user.name }, member };
     });
 
+    // ── Send verification email ─────────────────────────────────────────────
+    const verifyToken  = createEmailVerificationToken(result.user.id);
+    const baseUrl      = process.env.NEXTAUTH_URL ?? 'http://localhost:3002';
+    const verifyUrl    = `${baseUrl}/api/auth/verify-email?token=${verifyToken}`;
+    await sendEmail({
+      to:      normalEmail,
+      subject: 'Verify your EntityOS email address',
+      html:    verifyEmailTemplate(verifyUrl, result.user.name ?? undefined),
+      text:    `Verify your email: ${verifyUrl}\n\nThis link expires in 24 hours.`,
+    });
+
     return NextResponse.json(
-      { message: 'Organisation created.', organisationId: result.org.id },
+      {
+        message: 'Account created. Please check your email to verify your address before signing in.',
+        organisationId: result.org.id,
+      },
       { status: 201 },
     );
   } catch (err) {
