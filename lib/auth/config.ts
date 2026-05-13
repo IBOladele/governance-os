@@ -178,12 +178,8 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
-  // LOW-3: fail fast at request time (not build time) if secret is missing in production
-  secret: process.env.NEXTAUTH_SECRET ?? (() => {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('NEXTAUTH_SECRET must be set in production. Add it to Railway environment variables.');
-    }
-    return 'dev-only-insecure-secret';
-  })(),
+  // NextAuth validates the secret at request time; Railway injects NEXTAUTH_SECRET
+  // as a runtime env var (not available during the Docker build step).
+  secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === 'development',
 };
