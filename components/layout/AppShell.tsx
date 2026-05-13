@@ -7,7 +7,8 @@ import FeedbackWidget from '@/components/FeedbackWidget';
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  if (pathname === '/login') {
+  const isPublic = pathname === '/' || pathname === '/login' || pathname.startsWith('/signup');
+  if (isPublic) {
     return <>{children}</>;
   }
 
