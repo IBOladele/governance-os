@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/config';
+import { requireAuth } from '@/lib/auth/require';
 import { prisma } from '@/lib/prisma';
+import { writeAuditLog, requestMeta } from '@/lib/audit';
 
-function forbidden() {
-  return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+async function verifyEntityOwnership(entityId: string, organisationId: string) {
+  return prisma.entity.findFirst({ where: { id: entityId, organisationId } });
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (session.user.role !== 'super_admin') return forbidden();
+  const auth = await requireAuth(['super_admin', 'admin']);
+  if (!auth.ok) return auth.response;
+  const { ctx } = auth;
 
   const { id } = await params;
+
+  // Verify entity belongs to caller's org (IDOR fix)
+  const entity = await verifyEntityOwnership(id, ctx.organisationId);
+  if (!entity) return NextResponse.json({ error: 'Entity not found' }, { status: 404 });
 
   const shareholders = await prisma.shareholder.findMany({
     where: { entityId: id },
@@ -24,11 +28,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (session.user.role !== 'super_admin') return forbidden();
+  const auth = await requireAuth(['super_admin', 'admin']);
+  if (!auth.ok) return auth.response;
+  const { ctx } = auth;
 
   const { id } = await params;
+
+  // Verify entity belongs to caller's org (IDOR fix)
+  const entity = await verifyEntityOwnership(id, ctx.organisationId);
+  if (!entity) return NextResponse.json({ error: 'Entity not found' }, { status: 404 });
+
   const body = await req.json();
 
   const {
@@ -36,7 +45,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     percentageOwned, entityOwnerId, isActive, appointmentDate, notes,
   } = body;
 
-  // Derive percentage from shares if both provided, else use direct %
   const pct = sharesHeld && totalShares
     ? parseFloat(((sharesHeld / totalShares) * 100).toFixed(4))
     : parseFloat(percentageOwned ?? 0);
@@ -45,18 +53,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     data: {
       entityId: id,
       name,
-      email:          email || null,
+      email:           email || null,
       shareholderType,
-      shareClass:     shareClass || 'Ordinary',
-      sharesHeld:     sharesHeld ?? 0,
-      totalShares:    totalShares ?? 0,
+      shareClass:      shareClass || 'Ordinary',
+      sharesHeld:      sharesHeld ?? 0,
+      totalShares:     totalShares ?? 0,
       percentageOwned: pct,
-      entityOwnerId:  entityOwnerId || null,
-      isActive:       isActive ?? true,
+      entityOwnerId:   entityOwnerId || null,
+      isActive:        isActive ?? true,
       appointmentDate: appointmentDate ? new Date(appointmentDate) : null,
-      notes:          notes || null,
+      notes:           notes || null,
     },
     include: { ownerEntity: { select: { id: true, name: true } } },
+  });
+
+  await writeAuditLog({
+    action: 'CREATE', tableName: 'shareholders', recordId: shareholder.id,
+    entityId: id, userId: ctx.userId, newValues: shareholder,
+    ...requestMeta(req),
   });
 
   return NextResponse.json(shareholder, { status: 201 });

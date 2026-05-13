@@ -129,6 +129,55 @@ export default function MeetingDetailClient({
   const [editingNotes, setEditingNotes] = useState(false);
   const [savedNotes, setSavedNotes]     = useState(false);
 
+  // Inline agenda editing
+  const [editingAgenda, setEditingAgenda] = useState(false);
+  const [agendaDraft,   setAgendaDraft]   = useState('');
+  const [savingAgenda,  setSavingAgenda]  = useState(false);
+
+  const saveAgenda = async () => {
+    setSavingAgenda(true);
+    try {
+      const res = await fetch(`/api/board-meetings/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agenda: agendaDraft }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setMeetingData(json.data);
+        setEditingAgenda(false);
+      }
+    } finally { setSavingAgenda(false); }
+  };
+
+  // Inline minutes editing
+  const [minutesOpen,   setMinutesOpen]   = useState(false);
+  const [minutesDraft,  setMinutesDraft]  = useState('');
+  const [minutesUrlDraft, setMinutesUrlDraft] = useState('');
+  const [savingMinutes, setSavingMinutes] = useState(false);
+
+  const openMinutesModal = (mtg: BoardMeeting) => {
+    setMinutesDraft(mtg.minutes ?? '');
+    setMinutesUrlDraft(mtg.minutesUrl ?? '');
+    setMinutesOpen(true);
+  };
+
+  const saveMinutes = async () => {
+    setSavingMinutes(true);
+    try {
+      const res = await fetch(`/api/board-meetings/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ minutes: minutesDraft, minutesUrl: minutesUrlDraft || null }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setMeetingData(json.data);
+        setMinutesOpen(false);
+      }
+    } finally { setSavingMinutes(false); }
+  };
+
   // Mark as Held state
   const [heldOpen, setHeldOpen]     = useState(false);
   const [heldStep, setHeldStep]     = useState(1);
@@ -431,6 +480,15 @@ export default function MeetingDetailClient({
               Confirmed by {meeting.confirmedBy}
             </div>
           )}
+          {meeting.status === 'completed' && (
+            <button
+              onClick={() => openMinutesModal(meeting)}
+              className="flex items-center gap-2 px-3 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
+            >
+              <FileText className="w-4 h-4" />
+              {meeting.minutes ? 'Edit Minutes' : 'Add Minutes'}
+            </button>
+          )}
           <Link
             href={`/board-meetings/new?edit=${meeting.id}`}
             className="flex items-center gap-2 px-3 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
@@ -531,11 +589,46 @@ export default function MeetingDetailClient({
           <div className="grid grid-cols-5 gap-5">
             {/* Agenda */}
             <div className="col-span-3 bg-white border border-slate-200 rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-indigo-500" />
-                Agenda
-              </h3>
-              {agendaItems.length > 0 ? (
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-indigo-500" />
+                  Agenda
+                </h3>
+                <div className="flex items-center gap-2">
+                  {editingAgenda ? (
+                    <>
+                      <button
+                        onClick={saveAgenda}
+                        disabled={savingAgenda}
+                        className="text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+                      >
+                        <Save className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => setEditingAgenda(false)} className="text-slate-400 hover:text-slate-600">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => { setAgendaDraft(meeting.agenda ?? ''); setEditingAgenda(true); }}
+                      className="text-slate-400 hover:text-indigo-600"
+                      title="Edit agenda"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {editingAgenda ? (
+                <textarea
+                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  rows={6}
+                  placeholder="Enter agenda items, one per line or separated by semicolons…"
+                  value={agendaDraft}
+                  onChange={e => setAgendaDraft(e.target.value)}
+                />
+              ) : agendaItems.length > 0 ? (
                 <ol className="space-y-2">
                   {agendaItems.map((item, i) => (
                     <li key={i} className="flex gap-3 text-sm text-slate-700">
@@ -547,7 +640,7 @@ export default function MeetingDetailClient({
                   ))}
                 </ol>
               ) : (
-                <p className="text-sm text-slate-400">No agenda set.</p>
+                <p className="text-sm text-slate-400">No agenda set. Click the edit icon to add items.</p>
               )}
             </div>
 
@@ -638,14 +731,29 @@ export default function MeetingDetailClient({
               </div>
             )}
 
-            {/* Minutes */}
-            {meeting.minutes && (
-              <div className="col-span-5 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-green-800">Minutes Available</p>
-                  <p className="text-xs text-green-600">{meeting.minutes}</p>
+            {/* Minutes — always shown on completed meetings */}
+            {meeting.status === 'completed' && (
+              <div className={`col-span-5 rounded-xl p-4 flex items-start gap-3 border ${meeting.minutes ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200'}`}>
+                <CheckCircle2 className={`w-5 h-5 shrink-0 mt-0.5 ${meeting.minutes ? 'text-green-600' : 'text-slate-300'}`} />
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium ${meeting.minutes ? 'text-green-800' : 'text-slate-500'}`}>
+                    {meeting.minutes ? 'Meeting Minutes' : 'No minutes recorded yet'}
+                  </p>
+                  {meeting.minutes && <p className="text-xs text-green-700 mt-1 whitespace-pre-line">{meeting.minutes}</p>}
+                  {meeting.minutesUrl && (
+                    <a href={meeting.minutesUrl} target="_blank" rel="noopener noreferrer"
+                      className="text-xs text-indigo-600 hover:underline mt-1 block">
+                      📎 {meeting.minutesUrl}
+                    </a>
+                  )}
                 </div>
+                <button
+                  onClick={() => openMinutesModal(meeting)}
+                  className="text-slate-400 hover:text-indigo-600 shrink-0"
+                  title={meeting.minutes ? 'Edit minutes' : 'Add minutes'}
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
               </div>
             )}
           </div>
@@ -1391,6 +1499,66 @@ export default function MeetingDetailClient({
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Add / Edit Minutes Modal ── */}
+      {minutesOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+            <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {meeting.minutes ? 'Edit Minutes' : 'Add Minutes'}
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">{meeting.meetingType} · {formatDate(meeting.meetingDate)}</p>
+              </div>
+              <button onClick={() => setMinutesOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Minutes summary</label>
+                <textarea
+                  value={minutesDraft}
+                  onChange={e => setMinutesDraft(e.target.value)}
+                  rows={5}
+                  placeholder="Key decisions, resolutions, and action items from the meeting…"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Minutes document URL <span className="text-slate-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={minutesUrlDraft}
+                  onChange={e => setMinutesUrlDraft(e.target.value)}
+                  placeholder="e.g. /uploads/docs/Q2-2026-Board-Minutes.pdf"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                />
+              </div>
+            </div>
+
+            <div className="px-6 pb-6 flex justify-end gap-3">
+              <button
+                onClick={() => setMinutesOpen(false)}
+                className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveMinutes}
+                disabled={savingMinutes}
+                className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {savingMinutes ? 'Saving…' : <><Save className="w-4 h-4" /> Save Minutes</>}
+              </button>
+            </div>
           </div>
         </div>
       )}

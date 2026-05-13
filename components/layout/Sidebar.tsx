@@ -28,11 +28,14 @@ const ALL_NAV = [
   { href: '/documents',      label: 'Document Vault',       icon: FileText,        module: 'documents' },
 ];
 
+// Platform Overview is shown only to the platform owner (identified by org-default-001
+// in dev/seed mode, or by NEXT_PUBLIC_PLATFORM_OWNER_EMAIL in production).
+// All other admin items are visible to super_admin + admin within any org.
 const ADMIN_NAV = [
-  { href: '/admin/platform',    label: 'Platform Overview', icon: Globe,             module: 'platform' },
-  { href: '/admin/users',       label: 'User Management',   icon: UserCog,           module: 'admin' },
-  { href: '/admin/submissions', label: 'Submissions',        icon: MessageSquarePlus, module: 'admin' },
-  { href: '/settings/members',  label: 'Team Members',       icon: Settings,          module: 'admin' },
+  { href: '/admin/users',       label: 'User Management', icon: UserCog,           module: 'admin',    platformOnly: false },
+  { href: '/admin/submissions', label: 'Submissions',     icon: MessageSquarePlus, module: 'admin',    platformOnly: false },
+  { href: '/settings/members',  label: 'Team Members',    icon: Settings,          module: 'admin',    platformOnly: false },
+  { href: '/admin/platform',    label: 'Platform Overview', icon: Globe,            module: 'platform', platformOnly: true  },
 ];
 
 // Permissions per role (matches ROLE_PERMISSIONS in users.ts — duplicated to avoid a server import in this client component)
@@ -65,8 +68,18 @@ export default function Sidebar() {
   const role = (user?.role ?? 'super_admin') as UserRole;
   const perms = PERMISSIONS[role] ?? PERMISSIONS.super_admin;
 
-  const visibleNav = ALL_NAV.filter(item => perms.includes(item.module));
-  const visibleAdmin = ADMIN_NAV.filter(item => perms.includes(item.module));
+  // Platform Overview is exclusive to the platform owner (operator of this EntityOS instance).
+  // Identified by organisationId === 'org-default-001' (seed/platform org) or by
+  // NEXT_PUBLIC_PLATFORM_OWNER_EMAIL env var matching the user's email.
+  const platformOwnerEmail = process.env.NEXT_PUBLIC_PLATFORM_OWNER_EMAIL?.toLowerCase();
+  const isPlatformOwner =
+    (user as any)?.organisationId === 'org-default-001' ||
+    (platformOwnerEmail && (user as any)?.email?.toLowerCase() === platformOwnerEmail);
+
+  const visibleNav   = ALL_NAV.filter(item => perms.includes(item.module));
+  const visibleAdmin = ADMIN_NAV.filter(item =>
+    perms.includes(item.module) && (!item.platformOnly || isPlatformOwner)
+  );
 
   const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() ?? 'PN';
 

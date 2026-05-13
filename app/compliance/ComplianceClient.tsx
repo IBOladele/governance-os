@@ -241,6 +241,9 @@ export default function ComplianceClient({ initialObligations, entities }: Props
   const [sortKey, setSortKey] = useState<SortKey>('daysRemaining');
   const [sortAsc, setSortAsc] = useState(true);
   const [showImport, setShowImport] = useState(false);
+  const [showRefs, setShowRefs] = useState(false);
+  const [refs, setRefs] = useState<{ entities: any[]; directors: any[]; shareholders: any[] } | null>(null);
+  const [refsLoading, setRefsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [autoPopulating, setAutoPopulating] = useState(false);
   const [importResult, setImportResult] = useState<{ title: string; data: ImportResult } | null>(null);
@@ -451,6 +454,23 @@ export default function ComplianceClient({ initialObligations, entities }: Props
             Import CSV
           </button>
           <button
+            onClick={async () => {
+              setShowRefs(v => !v);
+              if (!refs) {
+                setRefsLoading(true);
+                try {
+                  const r = await fetch('/api/compliance/references');
+                  const j = await r.json();
+                  setRefs(j);
+                } finally { setRefsLoading(false); }
+              }
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <Info className="w-4 h-4" />
+            Reference IDs
+          </button>
+          <button
             onClick={handleAutoPopulate}
             disabled={autoPopulating}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
@@ -507,6 +527,93 @@ export default function ComplianceClient({ initialObligations, entities }: Props
             >
               View overdue
             </button>
+          </div>
+        )}
+
+        {/* Reference IDs panel */}
+        {showRefs && (
+          <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Reference IDs</h3>
+                <p className="text-sm text-gray-500 mt-0.5">Copy entity, director, or shareholder IDs to use in CSV uploads.</p>
+              </div>
+              <button onClick={() => setShowRefs(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {refsLoading && <p className="text-sm text-gray-400">Loading…</p>}
+
+            {refs && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                {/* Entities */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Entities (entityId)</p>
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                    {refs.entities.map((e: any) => (
+                      <div key={e.id} className="flex items-center justify-between bg-gray-50 rounded-md px-3 py-2 group">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-gray-800 truncate">{e.name}</p>
+                          <p className="text-xs text-gray-400">{e.country}</p>
+                        </div>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(e.id)}
+                          className="ml-2 text-xs font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded shrink-0 hover:bg-indigo-100 cursor-pointer"
+                          title="Click to copy"
+                        >
+                          {e.id.slice(0, 12)}…
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Directors */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Directors</p>
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                    {refs.directors.map((d: any) => (
+                      <div key={d.id} className="flex items-center justify-between bg-gray-50 rounded-md px-3 py-2 group">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-gray-800 truncate">{d.name}</p>
+                          <p className="text-xs text-gray-400 truncate">{d.role} · {d.entity?.name}</p>
+                        </div>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(d.id)}
+                          className="ml-2 text-xs font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded shrink-0 hover:bg-indigo-100 cursor-pointer"
+                          title="Click to copy"
+                        >
+                          {d.id.slice(0, 12)}…
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Shareholders */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Shareholders</p>
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                    {refs.shareholders.map((s: any) => (
+                      <div key={s.id} className="flex items-center justify-between bg-gray-50 rounded-md px-3 py-2 group">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-gray-800 truncate">{s.name}</p>
+                          <p className="text-xs text-gray-400 truncate">{s.shareholderType} · {s.entity?.name}</p>
+                        </div>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(s.id)}
+                          className="ml-2 text-xs font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded shrink-0 hover:bg-indigo-100 cursor-pointer"
+                          title="Click to copy"
+                        >
+                          {s.id.slice(0, 12)}…
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

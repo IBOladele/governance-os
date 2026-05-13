@@ -72,12 +72,17 @@ export default function PlatformAdminPage() {
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  // Guard: super_admin only
+  // Guard: platform owner only (not just any super_admin)
   useEffect(() => {
     if (status === 'loading') return;
-    if (!session || (session.user as any).role !== 'super_admin') {
-      router.replace('/dashboard');
-    }
+    if (!session) { router.replace('/login'); return; }
+    const ownerEmail = process.env.NEXT_PUBLIC_PLATFORM_OWNER_EMAIL?.toLowerCase();
+    const userEmail  = (session.user as any).email?.toLowerCase() ?? '';
+    const userOrgId  = (session.user as any).organisationId ?? '';
+    const isPlatformOwner =
+      userOrgId === 'org-default-001' ||
+      (ownerEmail && userEmail === ownerEmail);
+    if (!isPlatformOwner) router.replace('/dashboard');
   }, [session, status, router]);
 
   useEffect(() => {
