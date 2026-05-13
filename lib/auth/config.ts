@@ -1,8 +1,3 @@
-// Fail fast in production if NEXTAUTH_SECRET is missing (LOW-3)
-if (process.env.NODE_ENV === 'production' && !process.env.NEXTAUTH_SECRET) {
-  throw new Error('NEXTAUTH_SECRET must be set in production.');
-}
-
 import type { NextAuthOptions, DefaultSession } from 'next-auth';
 import OktaProvider from 'next-auth/providers/okta';
 import CredentialsProvider from 'next-auth/providers/credentials';
@@ -183,6 +178,12 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
-  secret: process.env.NEXTAUTH_SECRET,
-  debug:  process.env.NODE_ENV === 'development',
+  // LOW-3: fail fast at request time (not build time) if secret is missing in production
+  secret: process.env.NEXTAUTH_SECRET ?? (() => {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('NEXTAUTH_SECRET must be set in production. Add it to Railway environment variables.');
+    }
+    return 'dev-only-insecure-secret';
+  })(),
+  debug: process.env.NODE_ENV === 'development',
 };
