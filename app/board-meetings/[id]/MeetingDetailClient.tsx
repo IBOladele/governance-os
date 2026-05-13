@@ -98,7 +98,7 @@ function generateICS(meeting: BoardMeeting, entityName: string): string {
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//GovernanceOS//EN',
+    'PRODID:-//EntityOS//EN',
     'BEGIN:VEVENT',
     `UID:${meeting.id}@governanceos.app`,
     `DTSTART;TZID=${tz}:${dtStart}`,

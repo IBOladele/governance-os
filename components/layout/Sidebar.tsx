@@ -29,14 +29,15 @@ const ALL_NAV = [
 ];
 
 const ADMIN_NAV = [
-  { href: '/admin/users',       label: 'User Management', icon: UserCog,           module: 'admin' },
-  { href: '/admin/submissions', label: 'Submissions',     icon: MessageSquarePlus, module: 'admin' },
-  { href: '/settings/members',  label: 'Team Members',    icon: Settings,          module: 'admin' },
+  { href: '/admin/platform',    label: 'Platform Overview', icon: Globe,             module: 'platform' },
+  { href: '/admin/users',       label: 'User Management',   icon: UserCog,           module: 'admin' },
+  { href: '/admin/submissions', label: 'Submissions',        icon: MessageSquarePlus, module: 'admin' },
+  { href: '/settings/members',  label: 'Team Members',       icon: Settings,          module: 'admin' },
 ];
 
 // Permissions per role (matches ROLE_PERMISSIONS in users.ts — duplicated to avoid a server import in this client component)
 const PERMISSIONS: Record<UserRole, string[]> = {
-  super_admin: ['entities', 'directors', 'meetings', 'compliance', 'licenses', 'capital', 'alerts', 'documents', 'admin'],
+  super_admin: ['entities', 'directors', 'meetings', 'compliance', 'licenses', 'capital', 'alerts', 'documents', 'admin', 'platform'],
   admin:       ['entities', 'directors', 'meetings', 'compliance', 'licenses', 'capital', 'alerts', 'documents', 'admin'],
   legal:       ['entities', 'directors', 'meetings', 'compliance', 'licenses', 'alerts', 'documents'],
   finance:     ['entities', 'compliance', 'capital', 'alerts'],
@@ -79,7 +80,7 @@ export default function Sidebar() {
           </div>
           <div className="min-w-0">
             <p className="font-semibold text-white text-sm leading-tight truncate">
-              {(user as any)?.organisationName || 'GovernanceOS'}
+              {(user as any)?.organisationName || 'EntityOS'}
             </p>
             <p className="text-slate-400 text-xs">EntityOS Platform</p>
           </div>

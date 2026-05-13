@@ -1,13 +1,13 @@
-# GovernanceOS — Claude Code Guide
+# EntityOS — Claude Code Guide
 
 This file tells Claude how to work with this project. When a user asks to set up,
-run, or develop GovernanceOS, follow the instructions below.
+run, or develop EntityOS, follow the instructions below.
 
 ---
 
 ## What this project is
 
-GovernanceOS is an open-source corporate entity governance platform built with
+EntityOS is an open-source corporate entity governance platform built with
 Next.js 16, TypeScript, PostgreSQL, and Prisma 7. It manages legal entities,
 directors, board meetings, regulatory compliance, licenses, and capital
 requirements across a global portfolio.

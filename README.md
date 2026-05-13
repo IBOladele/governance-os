@@ -1,8 +1,8 @@
-# GovernanceOS
+# EntityOS
 
 **Open-source corporate entity governance platform for regulated financial institutions.**
 
-GovernanceOS centralises management of legal entities, directors, board meetings, regulatory compliance, licenses, and capital requirements across a global portfolio — with built-in AI tools for board governance document generation.
+EntityOS centralises management of legal entities, directors, board meetings, regulatory compliance, licenses, and capital requirements across a global portfolio — with built-in AI tools for board governance document generation.
 
 > Built with Next.js 15, TypeScript, PostgreSQL, and Prisma 7.
 
@@ -195,7 +195,7 @@ Navigate to any entity → click **Terms of Reference**.
 To sync compliance obligations from Jira:
 
 1. Set `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, and `JIRA_PROJECT_KEY` in `.env`
-2. Edit `lib/jiraEntityMap.ts` to map your Jira entity name patterns to GovernanceOS entity IDs
+2. Edit `lib/jiraEntityMap.ts` to map your Jira entity name patterns to EntityOS entity IDs
 3. The sync endpoint is `/api/webhooks/jira` — configure a Jira automation to POST to it
 
 ---

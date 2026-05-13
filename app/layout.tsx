@@ -6,7 +6,7 @@ import AppShell from '@/components/layout/AppShell';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'GovernanceOS — Corporate Governance Platform',
+  title: 'EntityOS — Corporate Governance Platform',
   description: 'Centralized entity management for regulated financial institutions',
 };
 

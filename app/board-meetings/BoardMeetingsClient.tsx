@@ -17,7 +17,7 @@ function generateICS(meeting: BoardMeeting, entityName: string): string {
     `${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
   const loc = meeting.virtualLink || meeting.location || meeting.locationType;
   return [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//GovernanceOS//EN',
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//EntityOS//EN',
     'BEGIN:VEVENT',
     `UID:${meeting.id}@governanceos.app`,
     `DTSTAMP:${fmt(new Date())}`,

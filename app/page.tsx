@@ -121,7 +121,7 @@ export default function LandingPage() {
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
               <Globe className="w-[18px] h-[18px] text-white" />
             </div>
-            <span className="font-semibold text-gray-900 text-sm">GovernanceOS</span>
+            <span className="font-semibold text-gray-900 text-sm">EntityOS</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-7 text-sm text-gray-500">
@@ -160,7 +160,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="text-lg text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            GovernanceOS centralises entity management, compliance tracking, board meetings,
+            EntityOS centralises entity management, compliance tracking, board meetings,
             and regulatory filings across every subsidiary — in every jurisdiction.
           </p>
 
@@ -367,7 +367,7 @@ export default function LandingPage() {
             Take control of your group structure
           </h2>
           <p className="text-lg text-slate-400 mb-10">
-            Join governance and compliance teams who use GovernanceOS to stay ahead of filings,
+            Join governance and compliance teams who use EntityOS to stay ahead of filings,
             regulators, and board deadlines — across every entity, every jurisdiction.
           </p>
           <Link href="/signup"
@@ -387,7 +387,7 @@ export default function LandingPage() {
                 <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center">
                   <Globe className="w-4 h-4 text-white" />
                 </div>
-                <span className="font-semibold text-white text-sm">GovernanceOS</span>
+                <span className="font-semibold text-white text-sm">EntityOS</span>
               </div>
               <p className="text-xs text-slate-500 max-w-xs">
                 Corporate entity governance for regulated financial institutions and complex group structures.
@@ -405,7 +405,7 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-10 pt-6 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-slate-600">© {new Date().getFullYear()} GovernanceOS. All rights reserved.</p>
+            <p className="text-xs text-slate-600">© {new Date().getFullYear()} EntityOS. All rights reserved.</p>
             <div className="flex items-center gap-1.5 text-xs text-slate-600">
               <BarChart3 className="w-3.5 h-3.5" />
               <span>99.9% uptime · SOC 2 compliant infrastructure</span>

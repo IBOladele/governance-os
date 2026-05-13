@@ -1,6 +1,6 @@
-# GovernanceOS — Setup Guide
+# EntityOS — Setup Guide
 
-Complete guide to running GovernanceOS locally, resetting demo data, and deploying to production.
+Complete guide to running EntityOS locally, resetting demo data, and deploying to production.
 
 ---
 
@@ -116,7 +116,7 @@ Open [http://localhost:3000](http://localhost:3000). You're in — no login requ
 
 ## 4. Loading Your Own Data
 
-GovernanceOS ships with demo data. To replace it with your real entities:
+EntityOS ships with demo data. To replace it with your real entities:
 
 ### Option A — Use the UI (recommended for small teams)
 
@@ -227,7 +227,7 @@ OKTA_CLIENT_SECRET="your-client-secret"
 OKTA_ISSUER="https://your-org.okta.com"
 ```
 
-### Step 3 — Map Okta users to GovernanceOS roles
+### Step 3 — Map Okta users to EntityOS roles
 
 When a user logs in via Okta for the first time, they get `viewer` role by default. To promote them:
 
@@ -237,7 +237,7 @@ When a user logs in via Okta for the first time, they get `viewer` role by defau
 
 ### Step 4 — Configure role assignment in Jira (optional)
 
-In `lib/jiraEntityMap.ts`, map Jira project entity names to GovernanceOS entity IDs so compliance obligations sync automatically.
+In `lib/jiraEntityMap.ts`, map Jira project entity names to EntityOS entity IDs so compliance obligations sync automatically.
 
 ---
 
@@ -388,4 +388,4 @@ Default demo credentials (auth disabled):
 
 ---
 
-*GovernanceOS is open-source under the MIT License.*
+*EntityOS is open-source under the MIT License.*

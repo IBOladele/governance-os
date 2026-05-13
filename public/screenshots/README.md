@@ -1,4 +1,4 @@
-# GovernanceOS Screenshots
+# EntityOS Screenshots
 
 These HTML files render pixel-perfect mockups of each major screen.
 

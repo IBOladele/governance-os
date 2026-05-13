@@ -61,7 +61,7 @@ export default function LoginPage() {
                 <Globe className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="font-bold text-lg leading-tight">GovernanceOS</p>
+                <p className="font-bold text-lg leading-tight">EntityOS</p>
                 <p className="text-indigo-200 text-xs">Entity Management Platform</p>
               </div>
             </div>
@@ -148,7 +148,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-xs text-slate-400 mt-6">
-          © {new Date().getFullYear()} GovernanceOS · Confidential
+          © {new Date().getFullYear()} EntityOS · Confidential
         </p>
       </div>
     </div>

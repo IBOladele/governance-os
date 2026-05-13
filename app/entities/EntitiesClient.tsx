@@ -225,7 +225,7 @@ export default function EntitiesClient({ entities, complianceObligations, licens
           <div className="font-mono text-sm text-gray-700 space-y-1.5">
             <div className="flex items-center gap-2">
               <Building2 className="w-4 h-4 text-indigo-500" />
-              <span className="font-semibold text-gray-900">GovernanceOS Holdings Pte. Ltd. (HoldCo — Singapore)</span>
+              <span className="font-semibold text-gray-900">EntityOS Holdings Pte. Ltd. (HoldCo — Singapore)</span>
             </div>
             {entities.filter(e => e.parentEntityId === 'ent-001').map((e, i, arr) => (
               <div key={e.id} className="ml-6 flex items-center gap-2 text-gray-600">

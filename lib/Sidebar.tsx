@@ -33,7 +33,7 @@ export default function Sidebar() {
           </div>
           <div>
             <p className="font-semibold text-white text-sm leading-tight">EntityOS</p>
-            <p className="text-slate-400 text-xs">GovernanceOS</p>
+            <p className="text-slate-400 text-xs">EntityOS</p>
           </div>
         </div>
       </div>

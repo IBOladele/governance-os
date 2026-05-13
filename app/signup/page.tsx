@@ -109,7 +109,7 @@ export default function SignupPage() {
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
             <Globe className="w-[18px] h-[18px] text-white" />
           </div>
-          <span className="font-semibold text-white text-sm">GovernanceOS</span>
+          <span className="font-semibold text-white text-sm">EntityOS</span>
         </Link>
 
         <div>
@@ -150,7 +150,7 @@ export default function SignupPage() {
           <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center">
             <Globe className="w-4 h-4 text-white" />
           </div>
-          <span className="font-semibold text-gray-900 text-sm">GovernanceOS</span>
+          <span className="font-semibold text-gray-900 text-sm">EntityOS</span>
         </Link>
 
         <div className="w-full max-w-md">
