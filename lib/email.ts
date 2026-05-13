@@ -1,19 +1,23 @@
 /**
  * Email sending utility — EntityOS
  *
- * Supports Resend (preferred) via RESEND_API_KEY env var.
- * Falls back to SMTP via SMTP_HOST / SMTP_USER / SMTP_PASS / SMTP_PORT.
- * Falls back to console.log in dev when neither is configured — the link
- * is printed so you can test without an email provider.
+ * Primary provider: AWS SES (via @aws-sdk/client-ses)
+ * Fallback:         console.log (dev/staging without credentials)
  *
- * Environment variables:
- *   RESEND_API_KEY     — Resend API key (resend.com — free tier available)
- *   EMAIL_FROM         — "From" address, default: "EntityOS <noreply@entityos.io>"
- *   SMTP_HOST          — SMTP server hostname (alternative to Resend)
- *   SMTP_PORT          — SMTP port (default 587)
- *   SMTP_USER          — SMTP username
- *   SMTP_PASS          — SMTP password
+ * Required environment variables for AWS SES:
+ *   AWS_SES_REGION            — e.g. "eu-west-1" or "us-east-1"
+ *   AWS_SES_ACCESS_KEY_ID     — IAM user access key (ses:SendEmail permission)
+ *   AWS_SES_SECRET_ACCESS_KEY — IAM user secret key
+ *   EMAIL_FROM                — Verified SES sender address,
+ *                               e.g. "EntityOS <noreply@yourdomain.com>"
+ *                               The domain/address must be verified in SES.
  */
+
+import {
+  SESClient,
+  SendEmailCommand,
+  type SendEmailCommandInput,
+} from '@aws-sdk/client-ses';
 
 export interface EmailPayload {
   to: string;
@@ -24,76 +28,60 @@ export interface EmailPayload {
 
 const FROM = process.env.EMAIL_FROM ?? 'EntityOS <noreply@entityos.io>';
 
-async function sendViaResend(payload: EmailPayload): Promise<void> {
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: FROM,
-      to:   payload.to,
-      subject: payload.subject,
-      html: payload.html,
-      text: payload.text,
-    }),
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Resend API error ${res.status}: ${body}`);
+// Lazily construct the SES client so missing env vars don't crash at module load.
+let _ses: SESClient | null = null;
+
+function getSESClient(): SESClient {
+  if (!_ses) {
+    _ses = new SESClient({
+      region: process.env.AWS_SES_REGION ?? 'us-east-1',
+      credentials: {
+        accessKeyId:     process.env.AWS_SES_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SES_SECRET_ACCESS_KEY!,
+      },
+    });
   }
+  return _ses;
 }
 
-async function sendViaSMTP(payload: EmailPayload): Promise<void> {
-  // Lazy-import nodemailer so it's only loaded when SMTP is configured.
-  // If you use Resend, nodemailer is never required.
-  const nodemailer = await import('nodemailer');
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT ?? '587'),
-    secure: (process.env.SMTP_PORT ?? '587') === '465',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+async function sendViaSES(payload: EmailPayload): Promise<void> {
+  const input: SendEmailCommandInput = {
+    Source: FROM,
+    Destination: { ToAddresses: [payload.to] },
+    Message: {
+      Subject: { Data: payload.subject, Charset: 'UTF-8' },
+      Body: {
+        Html: { Data: payload.html, Charset: 'UTF-8' },
+        ...(payload.text ? { Text: { Data: payload.text, Charset: 'UTF-8' } } : {}),
+      },
     },
-  });
-  await transporter.sendMail({
-    from: FROM,
-    to:   payload.to,
-    subject: payload.subject,
-    html: payload.html,
-    text: payload.text,
-  });
+  };
+  await getSESClient().send(new SendEmailCommand(input));
 }
 
 /**
- * Send an email. Automatically selects the best available provider.
- * In dev/staging with no provider configured, prints to console.
+ * Send an email via AWS SES.
+ * Falls back to console.log when SES credentials are not configured — the
+ * link is printed so you can test the flow locally without AWS.
  */
 export async function sendEmail(payload: EmailPayload): Promise<void> {
   try {
-    if (process.env.RESEND_API_KEY) {
-      await sendViaResend(payload);
-      return;
-    }
-    if (process.env.SMTP_HOST) {
-      await sendViaSMTP(payload);
+    if (process.env.AWS_SES_ACCESS_KEY_ID && process.env.AWS_SES_SECRET_ACCESS_KEY) {
+      await sendViaSES(payload);
       return;
     }
     // Dev fallback — print to console so you can copy the link
     console.log(
-      '\n📧 ─── EMAIL (no provider configured) ───────────────────────────\n' +
+      '\n📧 ─── EMAIL (AWS SES not configured) ──────────────────────────\n' +
       `To:      ${payload.to}\n` +
       `Subject: ${payload.subject}\n` +
-      `─────────────────────────────────────────────────────────────────\n` +
+      `────────────────────────────────────────────────────────────────\n` +
       (payload.text ?? payload.html.replace(/<[^>]+>/g, '')) +
-      '\n─────────────────────────────────────────────────────────────────\n'
+      '\n────────────────────────────────────────────────────────────────\n'
     );
   } catch (err) {
-    console.error('[email] Send failed:', err);
+    console.error('[email] SES send failed:', err);
     // Do not re-throw — a failed email should never crash an API route.
-    // The caller should handle the UX (e.g. "check your inbox" is always shown).
   }
 }
 
