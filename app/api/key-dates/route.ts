@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getOrgContext } from '@/lib/org';
+import { requireAuth } from '@/lib/auth/require';
 
 export async function GET(req: NextRequest) {
-  const ctx = await getOrgContext();
-  if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
+  const { ctx } = auth;
 
   const keyDates = await prisma.keyDate.findMany({
     where: {
@@ -20,14 +21,23 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const ctx = await getOrgContext();
-  if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireAuth(['super_admin', 'admin', 'legal']);
+  if (!auth.ok) return auth.response;
+  const { ctx } = auth;
 
   const body = await req.json();
   const { title, date, category, description, recurrence, status, notes, entityId } = body;
 
   if (!title || !date) {
     return NextResponse.json({ error: 'Title and date are required' }, { status: 400 });
+  }
+
+  // If an entityId is provided, verify it belongs to the caller's org (MED-8 fix)
+  if (entityId) {
+    const entity = await prisma.entity.findFirst({
+      where: { id: entityId, organisationId: ctx.organisationId },
+    });
+    if (!entity) return NextResponse.json({ error: 'Entity not found' }, { status: 404 });
   }
 
   const keyDate = await prisma.keyDate.create({

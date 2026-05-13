@@ -546,8 +546,21 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // CRIT-6: require authentication before generating or serving any document
+  const { requireAuth } = await import('@/lib/auth/require');
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
+  const { ctx } = auth;
+
   try {
     const { id } = await params;
+
+    // Verify the entity belongs to the caller's org before generating the ToR
+    const { prisma } = await import('@/lib/prisma');
+    const ownedEntity = await prisma.entity.findFirst({
+      where: { id, organisationId: ctx.organisationId },
+    });
+    if (!ownedEntity) return NextResponse.json({ error: 'Entity not found' }, { status: 404 });
 
     const [entities, directors] = await Promise.all([getEntities(), getDirectors()]);
     const entity = entities.find(e => e.id === id);

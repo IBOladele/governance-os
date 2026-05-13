@@ -75,12 +75,20 @@ interface SyncPayload {
 }
 
 export async function GET(request: Request) {
+  // GET is an admin-only status endpoint — requires session auth, org-scoped
+  const { requireAuth } = await import('@/lib/auth/require');
+  const auth = await requireAuth(['super_admin', 'admin', 'finance']);
+  if (!auth.ok) return auth.response;
+  const { ctx } = auth;
+
   const [bankAccounts, regulatoryCapital] = await Promise.all([
     prisma.bankAccount.findMany({
+      where: { entity: { organisationId: ctx.organisationId } },
       include: { entity: { select: { name: true, country: true } } },
       orderBy: { lastUpdated: 'desc' },
     }),
     prisma.regulatoryCapital.findMany({
+      where: { entity: { organisationId: ctx.organisationId } },
       include: { entity: { select: { name: true, country: true } } },
       orderBy: { lastUpdated: 'desc' },
     }),
@@ -96,7 +104,6 @@ export async function GET(request: Request) {
       'DBS IDEAL', 'Barclays.net', 'Bank of Lithuania Link',
       'HSBCnet', 'JPMorgan ACCESS', 'Standard Chartered Straight2Bank',
     ],
-    authRequired: !!process.env.CAPITAL_SYNC_API_KEY,
     lastSnapshot: {
       bankAccounts: bankAccounts.length,
       regulatoryCapital: regulatoryCapital.length,

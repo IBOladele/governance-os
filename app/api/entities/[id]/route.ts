@@ -1,17 +1,25 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { writeAuditLog, requestMeta } from '@/lib/audit';
+import { requireAuth } from '@/lib/auth/require';
 
 // PATCH /api/entities/[id] — update entity fields in place
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const auth = await requireAuth(['super_admin', 'admin', 'legal']);
+  if (!auth.ok) return auth.response;
+  const { ctx } = auth;
+
   try {
     const { id } = await params;
     const body = await request.json();
 
-    const existing = await prisma.entity.findUnique({ where: { id } });
+    // Verify the entity belongs to the caller's org (IDOR fix)
+    const existing = await prisma.entity.findFirst({
+      where: { id, organisationId: ctx.organisationId },
+    });
     if (!existing) {
       return NextResponse.json({ error: 'Entity not found' }, { status: 404 });
     }
@@ -28,7 +36,7 @@ export async function PATCH(
         auditor:           body.auditor           ?? existing.auditor,
         regulator:         body.regulator         ?? existing.regulator,
         financialYearEnd:  body.financialYearEnd  ?? existing.financialYearEnd,
-        country:           body.country            ?? existing.country,
+        country:           body.country           ?? existing.country,
         incorporationDate: body.incorporationDate !== undefined
           ? (body.incorporationDate ? new Date(body.incorporationDate) : existing.incorporationDate)
           : existing.incorporationDate,
@@ -39,23 +47,15 @@ export async function PATCH(
       },
     });
 
-    const meta = requestMeta(request);
     await writeAuditLog({
-      action: 'UPDATE',
-      tableName: 'entities',
-      recordId: id,
-      entityId: id,
-      oldValues: existing,
-      newValues: updated,
-      ...meta,
+      action: 'UPDATE', tableName: 'entities', recordId: id, entityId: id,
+      userId: ctx.userId, oldValues: existing, newValues: updated,
+      ...requestMeta(request),
     });
 
     return NextResponse.json({ data: updated });
   } catch (err) {
     console.error('[PATCH /api/entities/:id]', err);
-    return NextResponse.json(
-      { error: 'Failed to update entity' },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: 'Failed to update entity' }, { status: 500 });
   }
 }

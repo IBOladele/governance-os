@@ -32,6 +32,8 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!$|login|signup|api/auth|_next/static|_next/image|favicon.ico|public).*)',
+    // Exclude public routes explicitly — NOT using 'public' as a substring match
+    // to avoid blocking paths that happen to contain the word "public" (LOW-1 fix)
+    '/((?!$|login|signup|api/auth|_next/static|_next/image|favicon\\.ico|uploads/).*)',
   ],
 };

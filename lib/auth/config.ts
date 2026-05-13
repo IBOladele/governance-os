@@ -1,3 +1,8 @@
+// Fail fast in production if NEXTAUTH_SECRET is missing (LOW-3)
+if (process.env.NODE_ENV === 'production' && !process.env.NEXTAUTH_SECRET) {
+  throw new Error('NEXTAUTH_SECRET must be set in production.');
+}
+
 import type { NextAuthOptions, DefaultSession } from 'next-auth';
 import OktaProvider from 'next-auth/providers/okta';
 import CredentialsProvider from 'next-auth/providers/credentials';

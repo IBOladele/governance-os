@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth, requireAdmin } from '@/lib/auth/require';
 
 async function sendSlackNotification(submission: {
   id: string;
@@ -28,20 +29,8 @@ async function sendSlackNotification(submission: {
 
   const payload = {
     blocks: [
-      {
-        type: 'header',
-        text: {
-          type: 'plain_text',
-          text: `${emoji} New ${isBug ? 'Bug Report' : 'Feature Request'} — EntityOS`,
-        },
-      },
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `*${submission.title}*\n${submission.description}`,
-        },
-      },
+      { type: 'header', text: { type: 'plain_text', text: `${emoji} New ${isBug ? 'Bug Report' : 'Feature Request'} — EntityOS` } },
+      { type: 'section', text: { type: 'mrkdwn', text: `*${submission.title}*\n${submission.description}` } },
       {
         type: 'section',
         fields: [
@@ -55,24 +44,13 @@ async function sendSlackNotification(submission: {
       },
       {
         type: 'actions',
-        elements: [
-          {
-            type: 'button',
-            text: { type: 'plain_text', text: '👀 Review in EntityOS' },
-            url: `${appUrl}/admin/submissions`,
-            style: 'primary',
-          },
-        ],
+        elements: [{ type: 'button', text: { type: 'plain_text', text: '👀 Review in EntityOS' }, url: `${appUrl}/admin/submissions`, style: 'primary' }],
       },
     ],
   };
 
   try {
-    const res = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    const res = await fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       console.error(`[Slack notification failed] HTTP ${res.status}`, text);
@@ -82,14 +60,18 @@ async function sendSlackNotification(submission: {
   }
 }
 
+// GET — admin only (list all submissions for the admin panel)
 export async function GET(request: Request) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+
   try {
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type');
+    const type   = searchParams.get('type');
     const status = searchParams.get('status');
 
-    const where: any = {};
-    if (type) where.type = type;
+    const where: Record<string, unknown> = {};
+    if (type)   where.type   = type;
     if (status) where.status = status;
 
     const submissions = await (prisma as any).submission.findMany({
@@ -103,35 +85,40 @@ export async function GET(request: Request) {
   }
 }
 
+// POST — any authenticated user can submit a bug / feature request
 export async function POST(request: Request) {
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
+  const { ctx } = auth;
+
   try {
     const body = await request.json();
 
     const submission = await (prisma as any).submission.create({
       data: {
-        type: body.type,           // 'bug' | 'feature'
-        title: body.title,
+        type:        body.type,
+        title:       body.title,
         description: body.description,
-        pageUrl: body.pageUrl ?? null,
-        component: body.component ?? null,
-        severity: body.severity ?? null,   // bug only
-        area: body.area ?? null,           // feature only
-        priority: body.priority ?? null,   // feature only
-        submittedBy: body.submittedBy ?? 'unknown',
-        status: 'open',
+        pageUrl:     body.pageUrl     ?? null,
+        component:   body.component   ?? null,
+        severity:    body.severity    ?? null,
+        area:        body.area        ?? null,
+        priority:    body.priority    ?? null,
+        submittedBy: ctx.userId,        // always from session, never from body
+        status:      'open',
       },
     });
 
     // Send Slack notification (non-blocking)
     sendSlackNotification({
-      id: submission.id,
-      type: submission.type,
-      title: submission.title,
+      id:          submission.id,
+      type:        submission.type,
+      title:       submission.title,
       description: submission.description,
-      pageUrl: submission.pageUrl,
-      severity: submission.severity,
-      area: submission.area,
-      priority: submission.priority,
+      pageUrl:     submission.pageUrl,
+      severity:    submission.severity,
+      area:        submission.area,
+      priority:    submission.priority,
       submittedBy: submission.submittedBy,
     });
 

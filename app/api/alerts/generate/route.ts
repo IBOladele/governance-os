@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import { generateAlerts, updateAllHealthScores } from '@/lib/alertEngine';
+import { requireAdmin } from '@/lib/auth/require';
 
+// POST only — GET removed (was an unauthenticated side-effect trigger)
 export async function POST() {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+
   let alertResult = { created: 0, skipped: 0 };
   let healthError: string | null = null;
-  let alertError: string | null = null;
+  let alertError:  string | null = null;
 
-  // Run alert generation
   try {
     alertResult = await generateAlerts();
   } catch (err) {
@@ -15,7 +19,6 @@ export async function POST() {
     alertError = msg;
   }
 
-  // Run health score update (independently — don't let it block alerts)
   try {
     await updateAllHealthScores();
   } catch (err) {
@@ -24,25 +27,16 @@ export async function POST() {
     healthError = msg;
   }
 
-  // If both failed, return 500 with details
   if (alertError && healthError) {
     return NextResponse.json({
       error: 'Both alert generation and health score update failed',
-      alertError,
-      healthError,
+      alertError, healthError,
     }, { status: 500 });
   }
 
   return NextResponse.json({
-    success: true,
-    alerts: alertResult,
-    message: `Created ${alertResult.created} new alerts, skipped ${alertResult.skipped} duplicates. Health scores updated.`,
-    ...(alertError ? { alertWarning: alertError } : {}),
-    ...(healthError ? { healthWarning: healthError } : {}),
+    ...alertResult,
+    ...(healthError ? { healthError } : {}),
+    ...(alertError  ? { alertError  } : {}),
   });
-}
-
-// Allow GET for easy triggering from browser
-export async function GET() {
-  return POST();
 }

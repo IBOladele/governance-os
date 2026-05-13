@@ -21,7 +21,10 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { parseCsv } from '@/lib/csv';
 import { writeAuditLog, requestMeta } from '@/lib/audit';
+import { requireAuth } from '@/lib/auth/require';
 import type { ComplianceStatus } from '@prisma/client';
+
+const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 const VALID_STATUSES: ComplianceStatus[] = [
   'pending',
@@ -32,6 +35,10 @@ const VALID_STATUSES: ComplianceStatus[] = [
 ];
 
 export async function POST(request: Request) {
+  const auth = await requireAuth(['super_admin', 'admin', 'legal']);
+  if (!auth.ok) return auth.response;
+  const { ctx } = auth;
+
   try {
     const form = await request.formData();
     const file = form.get('file');
@@ -40,6 +47,10 @@ export async function POST(request: Request) {
         { error: 'Missing "file" field in multipart upload.' },
         { status: 400 },
       );
+    }
+
+    if (file.size > MAX_FILE_BYTES) {
+      return NextResponse.json({ error: 'File exceeds 5 MB limit.' }, { status: 413 });
     }
 
     const text = await file.text();
@@ -51,12 +62,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // Pre-fetch entities so we can validate entityId against the DB
-    const entities = await prisma.entity.findMany({ select: { id: true, name: true } });
+    // Only allow entity IDs that belong to the caller's org (cross-tenant fix)
+    const entities = await prisma.entity.findMany({
+      where: { organisationId: ctx.organisationId },
+      select: { id: true, name: true },
+    });
     const entityIds = new Set(entities.map((e) => e.id));
 
-    // Load existing obligations for deduplication (entityId + requirementType)
+    // Load existing obligations for deduplication (scoped to org)
     const existing = await prisma.complianceObligation.findMany({
+      where: { entity: { organisationId: ctx.organisationId } },
       select: { id: true, entityId: true, requirementType: true },
     });
     const existingKeys = new Map(
@@ -86,7 +101,7 @@ export async function POST(request: Request) {
       }
 
       if (!entityIds.has(entityId)) {
-        results.push({ row: lineNo, status: 'skipped', message: `Unknown entityId: ${entityId}` });
+        results.push({ row: lineNo, status: 'skipped', message: `Unknown or unauthorised entityId: ${entityId}` });
         continue;
       }
 
@@ -156,6 +171,7 @@ export async function POST(request: Request) {
             tableName: 'compliance_obligations',
             recordId: obligation.id,
             entityId,
+            userId: ctx.userId,
             newValues: obligation,
             notes: `CSV import — row ${lineNo}`,
             ...meta,

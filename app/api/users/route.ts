@@ -1,80 +1,44 @@
-// GET  /api/users        — list all users
-// POST /api/users        — create a user
+// GET  /api/users  — list members of the caller's organisation (admin+)
+// POST /api/users  — redirect: use /api/organisations/members to invite users
 
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
+import { requireAuth, requireAdmin } from '@/lib/auth/require';
 import { writeAuditLog, requestMeta } from '@/lib/audit';
-import type { UserRole } from '@prisma/client';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+  const { ctx } = auth;
+
   try {
-    const users = await prisma.user.findMany({
-      orderBy: { email: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        department: true,
-        title: true,
-        isActive: true,
-        lastLoginAt: true,
-        createdAt: true,
-        updatedAt: true,
+    // Return only users who are members of the caller's org
+    const members = await prisma.organisationMember.findMany({
+      where: { organisationId: ctx.organisationId },
+      include: {
+        user: {
+          select: {
+            id: true, name: true, email: true, role: true,
+            department: true, title: true, isActive: true,
+            lastLoginAt: true, createdAt: true, updatedAt: true,
+            // Never expose password or oktaId
+          },
+        },
       },
+      orderBy: { joinedAt: 'asc' },
     });
 
-    return NextResponse.json(users);
+    return NextResponse.json(members.map(m => ({ ...m.user, orgRole: m.role, memberId: m.id })));
   } catch (err) {
     console.error('[GET /api/users]', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch users' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
   }
 }
 
+// Creating users is done via /api/organisations/members (invite flow)
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const { name, email, role, department, title } = body as {
-      name: string; email: string; role: UserRole; department: string; title: string;
-    };
-
-    if (!name || !email || !role) {
-      return NextResponse.json(
-        { error: 'name, email, and role are required' },
-        { status: 400 }
-      );
-    }
-
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        role,
-        department: department ?? '',
-        title: title ?? '',
-        isActive: true,
-      },
-    });
-
-    const meta = requestMeta(req);
-    await writeAuditLog({
-      action: 'CREATE',
-      tableName: 'users',
-      recordId: user.id,
-      userId: user.id,
-      newValues: user,
-      ...meta,
-    });
-
-    return NextResponse.json(user, { status: 201 });
-  } catch (err) {
-    console.error('[POST /api/users]', err);
-    return NextResponse.json(
-      { error: 'Failed to create user' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(
+    { error: 'Use POST /api/organisations/members to invite users.' },
+    { status: 405 },
+  );
 }
