@@ -23,7 +23,8 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
 
-  const verified = searchParams.get('verified') === '1';
+  const verified    = searchParams.get('verified') === '1';
+  const registered  = searchParams.get('registered') === '1';
 
   const [email, setEmail]         = useState('');
   const [password, setPassword]   = useState('');
@@ -76,8 +77,19 @@ export default function LoginPage() {
 
           {/* Body */}
           <div className="px-8 py-8 space-y-5">
+            {/* Account created — awaiting verification */}
+            {registered && (
+              <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-blue-800">Account created!</p>
+                  <p className="text-sm text-blue-700 mt-0.5">Check your inbox for a verification link before signing in.</p>
+                </div>
+              </div>
+            )}
+
             {/* Email verified success banner */}
-            {verified && (
+            {verified && !registered && (
               <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl p-4">
                 <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
                 <p className="text-sm text-green-700">Email verified! You can now sign in.</p>
@@ -85,7 +97,7 @@ export default function LoginPage() {
             )}
 
             {/* URL-level error (from NextAuth redirect) */}
-            {error && !verified && (
+            {error && !verified && !registered && (
               <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
                 <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                 <p className="text-sm text-red-700">{ERROR_MESSAGES[error] ?? ERROR_MESSAGES.default}</p>

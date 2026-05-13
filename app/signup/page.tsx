@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
 import { Globe, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 
 function slugify(str: string) {
@@ -80,18 +79,8 @@ export default function SignupPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Something went wrong.'); setSaving(false); return; }
 
-      // Auto sign-in
-      const signInResult = await signIn('credentials', {
-        email:    form.email,
-        password: form.password,
-        redirect: false,
-      });
-
-      if (signInResult?.ok) {
-        router.push('/dashboard');
-      } else {
-        router.push('/login?registered=1');
-      }
+      // Account created — email verification required before sign-in
+      router.push('/login?registered=1');
     } catch {
       setError('Something went wrong. Please try again.');
       setSaving(false);
