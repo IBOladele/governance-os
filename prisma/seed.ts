@@ -159,7 +159,7 @@ async function main() {
     // Only wipe the known seed user — never delete other orgs' users
     await prisma.user.deleteMany({ where: { id: 'usr-super-001' } });
     const users = [
-      { id: 'usr-super-001', name: 'Ibrahim Oladele', email: 'ibrahim@monsterlabs.org', role: 'super_admin' as const, department: 'Executive', title: 'CEO', password: '$2b$12$L2eaActHHXheRsn22PXLROHXOyD9xKyEwdoXLE8EjHOqLv7xpDWv2', emailVerified: new Date() },
+      { id: 'usr-super-001', name: 'Ibrahim Oladele', email: 'ibrahim@monsterlabs.org', role: 'super_admin' as const, department: 'Executive', title: 'CEO', password: '$2b$12$Alg8zv2NCad5ncJjnKpQUe8ifWslYrL8B7JSbxKamSeWI8aPFhgLG', emailVerified: new Date() },
     ];
     for (const u of users) {
       await prisma.user.upsert({
