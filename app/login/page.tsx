@@ -7,14 +7,11 @@ import Link from 'next/link';
 import { Globe, Lock, AlertCircle, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 
 const ERROR_MESSAGES: Record<string, string> = {
-  OAuthSignin:            'Could not initiate Okta sign-in. Please try again.',
-  OAuthCallback:          'There was a problem completing the Okta sign-in.',
-  OAuthAccountNotLinked:  'This Okta account is not yet provisioned in EntityOS.',
-  SessionRequired:        'Please sign in to access EntityOS.',
-  CredentialsSignin:      'Invalid email or password.',
-  EmailNotVerified:       'Please verify your email address before signing in. Check your inbox for the verification link.',
-  VerifyFailed:           'That verification link is invalid or has expired. Please sign up again or contact support.',
-  default:                'An authentication error occurred. Please try again.',
+  SessionRequired:   'Please sign in to access EntityOS.',
+  CredentialsSignin: 'Invalid email or password.',
+  EmailNotVerified:  'Please verify your email address before signing in. Check your inbox for the verification link.',
+  VerifyFailed:      'That verification link is invalid or has expired. Please sign up again or contact support.',
+  default:           'An authentication error occurred. Please try again.',
 };
 
 export default function LoginPage() {

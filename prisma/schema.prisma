@@ -1,5 +1,5 @@
 // EntityOS — Prisma Schema
-// Auth:     NextAuth v4 + Okta OIDC
+// Auth:     NextAuth v4 (email + password)
 // Database: PostgreSQL (production)
 //
 // Setup:
@@ -158,8 +158,7 @@ model User {
   department  String?
   title       String?
   isActive    Boolean   @default(true)
-  oktaId      String?   @unique
-  password    String?   // bcrypt hash — null for SSO-only users
+  password    String?   // bcrypt hash
   lastLoginAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
